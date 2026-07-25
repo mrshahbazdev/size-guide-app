@@ -136,39 +136,25 @@ app.get('/', async (req, res) => {
     const host = params.get('host');
 
     const AppBridge = window['app-bridge'];
-    const appBridgeUtils = window['app-bridge-utils'];
     let app;
+    let authenticatedFetch;
     if (AppBridge && host && shop) {
       const createApp = AppBridge.default || AppBridge.createApp;
       app = createApp({ apiKey: '${process.env.SHOPIFY_API_KEY || ''}', host: host, shopOrigin: shop });
       console.log('App Bridge app created', app);
-    }
-
-    async function getToken() {
-      if (!app || !appBridgeUtils) { console.warn('App Bridge not loaded'); return ''; }
-      const getSessionToken = appBridgeUtils.getSessionToken || (appBridgeUtils.default && appBridgeUtils.default.getSessionToken);
-      if (!getSessionToken) { console.warn('getSessionToken not found'); return ''; }
-      try {
-        const token = await getSessionToken(app);
-        console.log('Session token received', token ? 'yes' : 'no');
-        return token || '';
-      } catch (e) {
-        console.warn('Session token failed', e);
-        return '';
-      }
-    }
-
-    function showTab(id) {
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-      event.target.classList.add('active');
+      authenticatedFetch = AppBridge.utilities && AppBridge.utilities.authenticatedFetch ? AppBridge.utilities.authenticatedFetch(app) : null;
+      console.log('authenticatedFetch available', !!authenticatedFetch);
     }
 
     async function api(path, opts = {}) {
-      const token = await getToken();
       const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-      if (token) headers.Authorization = 'Bearer ' + token;
+      try {
+        if (authenticatedFetch) {
+          const res = await authenticatedFetch(path, { ...opts, headers });
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        }
+      } catch (e) { console.warn('authenticatedFetch failed', e); }
       const res = await fetch(path, { ...opts, headers });
       if (!res.ok) throw new Error(await res.text());
       return res.json();

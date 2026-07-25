@@ -139,13 +139,19 @@ app.get('/', async (req, res) => {
     const appBridgeUtils = window['app-bridge-utils'];
     let app;
     if (AppBridge && host && shop) {
-      app = AppBridge.createApp({ apiKey: '${process.env.SHOPIFY_API_KEY || ''}', host: host, shopOrigin: shop });
+      const createApp = AppBridge.default || AppBridge.createApp;
+      app = createApp({ apiKey: '${process.env.SHOPIFY_API_KEY || ''}', host: host, shopOrigin: shop });
+      console.log('App Bridge app created', app);
     }
 
     async function getToken() {
-      if (!app || !appBridgeUtils || !appBridgeUtils.getSessionToken) return '';
+      if (!app || !appBridgeUtils) { console.warn('App Bridge not loaded'); return ''; }
+      const getSessionToken = appBridgeUtils.getSessionToken || (appBridgeUtils.default && appBridgeUtils.default.getSessionToken);
+      if (!getSessionToken) { console.warn('getSessionToken not found'); return ''; }
       try {
-        return await appBridgeUtils.getSessionToken(app);
+        const token = await getSessionToken(app);
+        console.log('Session token received', token ? 'yes' : 'no');
+        return token || '';
       } catch (e) {
         console.warn('Session token failed', e);
         return '';

@@ -150,13 +150,6 @@ app.get('/', async (req, res) => {
     async function api(path, opts = {}) {
       const url = path + window.location.search;
       const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-      try {
-        if (authenticatedFetch) {
-          const res = await authenticatedFetch(url, { ...opts, headers });
-          if (!res.ok) throw new Error(await res.text());
-          return res.json();
-        }
-      } catch (e) { console.warn('authenticatedFetch failed', e); }
       const res = await fetch(url, { ...opts, headers });
       if (!res.ok) throw new Error(await res.text());
       return res.json();

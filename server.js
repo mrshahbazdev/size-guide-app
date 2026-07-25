@@ -34,14 +34,24 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
   const { shop, host } = req.query;
+  console.log('Root request', { shop, host, query: Object.keys(req.query) });
   if (!shop) return res.status(400).send('Shop required');
   if (process.env.NODE_ENV !== 'development' || req.query.hmac || req.query.signature) {
     if (!verifyHmac(req.query, process.env.SHOPIFY_API_SECRET || '')) {
+      console.error('HMAC verification failed');
       return res.status(401).send('Unauthorized');
     }
   }
+
+  // If no active session for this shop, start OAuth
+  const sessions = await shopify.config.sessionStorage.findSessionsByShop(shop);
+  if (!sessions || sessions.length === 0) {
+    console.log('No session found, redirecting to OAuth', shop);
+    return res.redirect(`/api/auth?shop=${encodeURIComponent(shop)}`);
+  }
+
   res.set('Content-Type', 'text/html');
   res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -49,29 +59,33 @@ app.get('/', (req, res) => {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Size Guide + Fit Finder</title>
-  <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
 </head>
 <body style="font-family: sans-serif; padding: 20px;">
   <div id="app">
     <h1>Size Guide + Fit Finder</h1>
-    <p>Connected shop: <strong id="shop-name"></strong></p>
+    <p>Connected shop: <strong>${shop}</strong></p>
     <p>Status: installed</p>
+    <p><a href="/apps/size-guide?shop=${encodeURIComponent(shop)}">Size guide proxy test</a></p>
+    <p><a href="/apps/size-guide/fit-finder?shop=${encodeURIComponent(shop)}">Fit finder page</a></p>
   </div>
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    document.getElementById('shop-name').textContent = params.get('shop');
-    const host = params.get('host');
-    const shop = params.get('shop');
-    if (window['app-bridge'] && host && shop) {
-      window['app-bridge'].createApp({ apiKey: '${process.env.SHOPIFY_API_KEY || ''}', host: host, shopOrigin: shop });
-    }
-  </script>
 </body>
 </html>`);
 });
 
-app.get(shopify.config.auth.path, shopify.auth.begin());
-app.get(shopify.config.auth.callbackPath, shopify.auth.callback(), shopify.redirectToShopifyOrAppRoot());
+app.get(shopify.config.auth.path, (req, res, next) => {
+  console.log('OAuth begin', { shop: req.query.shop });
+  shopify.auth.begin()(req, res, next);
+});
+app.get(shopify.config.auth.callbackPath, (req, res, next) => {
+  console.log('OAuth callback', { shop: req.query.shop, code: req.query.code ? 'present' : 'missing' });
+  shopify.auth.callback()(req, res, (err) => {
+    if (err) {
+      console.error('OAuth callback error', err);
+      return res.status(500).send('OAuth callback failed: ' + err.message);
+    }
+    next();
+  });
+}, shopify.redirectToShopifyOrAppRoot());
 app.post(shopify.config.webhooks.path, shopify.processWebhooks({ webhookHandlers: {} }));
 
 app.get('/api/health', (req, res) => res.send('ok'));

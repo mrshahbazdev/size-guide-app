@@ -4,6 +4,7 @@ const { shopifyApp } = require('@shopify/shopify-app-express');
 const { ApiVersion } = require('@shopify/shopify-api');
 const path = require('path');
 const { JsonSessionStorage } = require('./lib/sessionStorage');
+const { log, error, getRecent } = require('./lib/logger');
 
 const PORT = process.env.PORT || 3000;
 
@@ -34,22 +35,31 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use((req, res, next) => {
+  log(`${req.method} ${req.url}`);
+  next();
+});
+
 app.get('/', async (req, res) => {
   const { shop, host } = req.query;
-  console.log('Root request', { shop, host, query: Object.keys(req.query) });
+  log('Root request ' + JSON.stringify({ shop, host, query: Object.keys(req.query) }));
   if (!shop) return res.status(400).send('Shop required');
   if (process.env.NODE_ENV !== 'development' || req.query.hmac || req.query.signature) {
     if (!verifyHmac(req.query, process.env.SHOPIFY_API_SECRET || '')) {
-      console.error('HMAC verification failed');
+      error('HMAC verification failed');
       return res.status(401).send('Unauthorized');
     }
   }
 
   // If no active session for this shop, start OAuth
-  const sessions = await shopify.config.sessionStorage.findSessionsByShop(shop);
-  if (!sessions || sessions.length === 0) {
-    console.log('No session found, redirecting to OAuth', shop);
-    return res.redirect(`/api/auth?shop=${encodeURIComponent(shop)}`);
+  try {
+    const sessions = await shopify.config.sessionStorage.findSessionsByShop(shop);
+    if (!sessions || sessions.length === 0) {
+      log('No session found, redirecting to OAuth ' + shop);
+      return res.redirect(`/api/auth?shop=${encodeURIComponent(shop)}`);
+    }
+  } catch (e) {
+    error('Session lookup error: ' + e.message);
   }
 
   res.set('Content-Type', 'text/html');
@@ -73,18 +83,21 @@ app.get('/', async (req, res) => {
 });
 
 app.get(shopify.config.auth.path, (req, res, next) => {
-  console.log('OAuth begin', { shop: req.query.shop });
+  log('OAuth begin ' + JSON.stringify({ shop: req.query.shop }));
   shopify.auth.begin()(req, res, next);
 });
 app.get(shopify.config.auth.callbackPath, (req, res, next) => {
-  console.log('OAuth callback', { shop: req.query.shop, code: req.query.code ? 'present' : 'missing' });
+  log('OAuth callback ' + JSON.stringify({ shop: req.query.shop, code: req.query.code ? 'present' : 'missing' }));
   shopify.auth.callback()(req, res, (err) => {
     if (err) {
-      console.error('OAuth callback error', err);
-      return res.status(500).send('OAuth callback failed: ' + err.message);
+      error('OAuth callback error: ' + (err.message || err));
+      return res.status(500).send('OAuth callback failed: ' + (err.message || err));
     }
     next();
   });
+}, (req, res, next) => {
+  log('OAuth callback completed, redirecting');
+  next();
 }, shopify.redirectToShopifyOrAppRoot());
 app.post(shopify.config.webhooks.path, shopify.processWebhooks({ webhookHandlers: {} }));
 
@@ -99,6 +112,17 @@ app.use('/apps/fit-finder', require('./routes/fit-finder'));
 // Admin API
 app.use('/api', shopify.validateAuthenticatedSession(), require('./routes/admin'));
 
+app.get('/logs', (req, res) => {
+  res.set('Content-Type', 'text/plain');
+  res.send(getRecent(req.query.lines ? parseInt(req.query.lines, 10) : 200));
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.listen(PORT, () => console.log(`Size Guide app listening on port ${PORT}`));
+// Global error handler
+app.use((err, req, res, next) => {
+  error('Unhandled error: ' + (err.stack || err.message || err));
+  res.status(500).send('Internal server error');
+});
+
+app.listen(PORT, () => log(`Size Guide app listening on port ${PORT}`));

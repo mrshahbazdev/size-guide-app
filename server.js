@@ -1,4 +1,5 @@
 require('dotenv').config();
+const fs = require('fs');
 const express = require('express');
 const { shopifyApp } = require('@shopify/shopify-app-express');
 const { ApiVersion } = require('@shopify/shopify-api');

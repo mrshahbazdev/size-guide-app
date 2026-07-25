@@ -75,8 +75,7 @@ app.get('/', async (req, res) => {
     <h1>Size Guide + Fit Finder</h1>
     <p>Connected shop: <strong>${shop}</strong></p>
     <p>Status: installed</p>
-    <p><a href="/apps/size-guide?shop=${encodeURIComponent(shop)}">Size guide proxy test</a></p>
-    <p><a href="/apps/size-guide/fit-finder?shop=${encodeURIComponent(shop)}">Fit finder page</a></p>
+    <p>Go to Online Store > Themes > Customize and add the <strong>Size guide button</strong> app block to your product page.</p>
   </div>
 </body>
 </html>`);

@@ -1,0 +1,8 @@
+# CloudLinux / cPanel Phusion Passenger config for Node.js
+PassengerEnabled On
+PassengerAppType node
+PassengerBaseURI /
+PassengerAppRoot /home/jobspics/domains/size-guide-app.jobspic.com/public_html
+PassengerStartupFile server.js
+PassengerNodejs /home/jobspics/nodevenv/domains/size-guide-app.jobspic.com/public_html/20/bin/node
+PassengerFriendlyErrorPages Off

@@ -35,8 +35,10 @@ app.post(shopify.config.webhooks.path, shopify.processWebhooks({ webhookHandlers
 
 app.get('/api/health', (req, res) => res.send('ok'));
 
-// Storefront app proxy
-app.use('/apps/size-guide', require('./routes/size-guide'));
+// Storefront app proxy (single Shopify subpath supports /apps/size-guide and /apps/size-guide/fit-finder)
+app.use('/apps/size-guide', require('./routes/proxy'));
+
+// Direct fit-finder route kept for local/development testing
 app.use('/apps/fit-finder', require('./routes/fit-finder'));
 
 // Admin API

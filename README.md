@@ -67,8 +67,10 @@ A self-contained Shopify app that adds a **size guide modal** and **fit finder w
 
 ## Storefront app proxy
 
-- `/apps/size-guide?shop=...&product_type=...&tags=...&handle=...` — returns Liquid size chart table
-- `/apps/fit-finder?shop=...` — returns fit finder widget
+Shopify allows one app proxy subpath, so both features are served under `/apps/size-guide`:
+
+- `/apps/size-guide?shop=...&product_type=...&tags=...&handle=...` — size chart table
+- `/apps/size-guide/fit-finder?shop=...` — fit finder widget
 
 ## Theme setup
 
@@ -79,7 +81,7 @@ A self-contained Shopify app that adds a **size guide modal** and **fit finder w
 
 2. In the theme editor, add the **Size guide button** app block to the product template.
 
-3. Create a page linked to `/apps/fit-finder` for the fit finder, or add the **Fit finder** app block to a section.
+3. Create a Shopify page linked to `/apps/size-guide/fit-finder` for the fit finder, or add the **Fit finder** app block to a section.
 
 ## Production notes
 

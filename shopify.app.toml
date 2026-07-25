@@ -1,26 +1,29 @@
 name = "Size Guide + Fit Finder"
-client_id = "YOUR_API_KEY"
-application_url = "https://your-app-domain.com"
+client_id = "1f547dea664ef7e7ab09baad2ff831af"
+application_url = "https://size-guide-app.jobspic.com"
 embedded = true
+
+[access]
+scopes = "read_products"
 
 [build]
 include_config_on_deploy = true
 
 [auth]
 redirect_urls = [
-  "https://your-app-domain.com/api/auth/callback"
+  "https://size-guide-app.jobspic.com/api/auth/callback"
 ]
 
 [webhooks]
-api_version = "2025-07"
+api_version = "2026-07"
 
   [webhooks.privacy_compliance]
-  customer_data_request_url = "https://your-app-domain.com/api/webhooks/customer_data_request"
-  customer_data_redaction_url = "https://your-app-domain.com/api/webhooks/customer_data_redaction"
-  shop_data_redaction_url = "https://your-app-domain.com/api/webhooks/shop_data_redaction"
+  customer_data_request_url = "https://size-guide-app.jobspic.com/api/webhooks/customer_data_request"
+  customer_data_redaction_url = "https://size-guide-app.jobspic.com/api/webhooks/customer_data_redaction"
+  shop_data_redaction_url = "https://size-guide-app.jobspic.com/api/webhooks/shop_data_redaction"
 
 [app_proxy]
-url = "https://your-app-domain.com/apps/size-guide"
+url = "https://size-guide-app.jobspic.com/apps/size-guide"
 subpath = "size-guide"
 prefix = "apps"
 

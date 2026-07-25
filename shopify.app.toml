@@ -1,0 +1,28 @@
+name = "Size Guide + Fit Finder"
+client_id = "YOUR_API_KEY"
+application_url = "https://your-app-domain.com"
+embedded = true
+
+[build]
+include_config_on_deploy = true
+
+[auth]
+redirect_urls = [
+  "https://your-app-domain.com/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2025-07"
+
+  [webhooks.privacy_compliance]
+  customer_data_request_url = "https://your-app-domain.com/api/webhooks/customer_data_request"
+  customer_data_redaction_url = "https://your-app-domain.com/api/webhooks/customer_data_redaction"
+  shop_data_redaction_url = "https://your-app-domain.com/api/webhooks/shop_data_redaction"
+
+[app_proxy]
+url = "https://your-app-domain.com/apps/size-guide"
+subpath = "size-guide"
+prefix = "apps"
+
+[pos]
+embedded = false

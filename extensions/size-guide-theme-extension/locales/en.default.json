@@ -1,0 +1,21 @@
+{
+  "size_guide": {
+    "open": "Size guide",
+    "title": "Size guide",
+    "loading": "Loading size guide...",
+    "no_chart": "No size chart available for this product.",
+    "unit": "Unit"
+  },
+  "fit_finder": {
+    "open": "Find my size",
+    "title": "Fit finder",
+    "not_configured": "Fit finder is not configured yet.",
+    "find_size": "Find my size",
+    "recommended": "Recommended size"
+  },
+  "general": {
+    "accessibility": {
+      "lightbox_close": "Close"
+    }
+  }
+}

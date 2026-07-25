@@ -1,0 +1,31 @@
+<button type="button" class="size-guide-link" data-size-guide-open
+  data-shop="{{ shop.permanent_domain }}"
+  data-product-type="{{ product.type | escape }}"
+  data-product-tags="{{ product.tags | join: ',' | escape }}"
+  data-product-handle="{{ product.handle | escape }}"
+  data-app-proxy-url="{{ shop.url }}/apps/size-guide"
+  aria-label="{{ 'size_guide.open' | t }}">
+  {{ 'size_guide.open' | t }}
+</button>
+
+<div class="size-guide-modal hidden" data-size-guide-modal role="dialog" aria-label="{{ 'size_guide.title' | t }}">
+  <div class="size-guide-modal__overlay" data-size-guide-close></div>
+  <div class="size-guide-modal__content">
+    <button type="button" class="size-guide-modal__close" data-size-guide-close aria-label="{{ 'general.accessibility.lightbox_close' | t }}">&times;</button>
+    <div data-size-guide-content>
+      <p>{{ 'size_guide.loading' | t }}</p>
+    </div>
+  </div>
+</div>
+
+<script src="{{ 'size-guide.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Size guide button",
+  "target": "section",
+  "settings": [
+    {"type": "text", "id": "link_text", "label": "Link text", "default": "Size guide"}
+  ]
+}
+{% endschema %}

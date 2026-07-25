@@ -26,6 +26,7 @@ const shopify = shopifyApp({
 });
 
 const { verifyAppProxy } = require('./lib/verifyProxy');
+const { verifyHmac } = require('./lib/verifyHmac');
 
 const app = express();
 app.use(express.json());
@@ -35,7 +36,7 @@ app.get('/', (req, res) => {
   const { shop, host } = req.query;
   if (!shop) return res.status(400).send('Shop required');
   if (process.env.NODE_ENV !== 'development' || req.query.hmac || req.query.signature) {
-    if (!verifyAppProxy(req.query, process.env.SHOPIFY_API_SECRET || '')) {
+    if (!verifyHmac(req.query, process.env.SHOPIFY_API_SECRET || '')) {
       return res.status(401).send('Unauthorized');
     }
   }

@@ -42,7 +42,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/', async (req, res) => {
+function hmacCheck(req, res, next) {
   const { shop, host } = req.query;
   log('Root request ' + JSON.stringify({ shop, host, query: Object.keys(req.query) }));
   if (!shop) return res.status(400).send('Shop required');
@@ -52,17 +52,11 @@ app.get('/', async (req, res) => {
       return res.status(401).send('Unauthorized');
     }
   }
+  next();
+}
 
-  // If no active session for this shop, start OAuth
-  try {
-    const sessions = await shopify.config.sessionStorage.findSessionsByShop(shop);
-    if (!sessions || sessions.length === 0) {
-      log('No session found, redirecting to OAuth ' + shop);
-      return res.redirect(`/api/auth?shop=${encodeURIComponent(shop)}`);
-    }
-  } catch (e) {
-    error('Session lookup error: ' + e.message);
-  }
+app.get('/', hmacCheck, shopify.ensureInstalledOnShop(), async (req, res) => {
+  const { shop, host } = req.query;
 
   // Ensure default data for the shop on first load
   try {

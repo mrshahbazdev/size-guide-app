@@ -69,15 +69,159 @@ app.get('/', async (req, res) => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="shopify-api-key" content="${process.env.SHOPIFY_API_KEY || ''}">
   <title>Size Guide + Fit Finder</title>
+  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" async></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; color: #202223; }
+    h1 { font-size: 20px; }
+    .tabs button { padding: 10px 20px; border: none; background: #f0f0f0; cursor: pointer; margin-right: 4px; }
+    .tabs button.active { background: #008060; color: white; }
+    .panel { display: none; margin-top: 16px; }
+    .panel.active { display: block; }
+    label { display: block; margin: 10px 0 4px; font-weight: 600; }
+    input, select, textarea { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; }
+    textarea { min-height: 80px; font-family: monospace; }
+    button.save { background: #008060; color: white; padding: 10px 20px; border: none; cursor: pointer; }
+    .item { border: 1px solid #ddd; padding: 10px; margin: 8px 0; border-radius: 4px; }
+    .item pre { background: #f6f6f7; padding: 8px; overflow: auto; }
+  </style>
 </head>
-<body style="font-family: sans-serif; padding: 20px;">
-  <div id="app">
-    <h1>Size Guide + Fit Finder</h1>
-    <p>Connected shop: <strong>${shop}</strong></p>
-    <p>Status: installed</p>
-    <p>Go to Online Store > Themes > Customize and add the <strong>Size guide button</strong> app block to your product page.</p>
+<body>
+  <h1>Size Guide + Fit Finder</h1>
+  <p>Connected shop: <strong>${shop}</strong></p>
+
+  <div class="tabs">
+    <button class="active" onclick="showTab('charts')">Size Charts</button>
+    <button onclick="showTab('fitfinder')">Fit Finder</button>
   </div>
+
+  <div id="charts" class="panel active">
+    <h2>Size Charts</h2>
+    <form id="chartForm">
+      <input type="hidden" id="chartId">
+      <label>Name</label><input id="chartName" required>
+      <label>Unit</label><input id="chartUnit" value="cm">
+      <label>Headers (comma separated)</label><input id="chartHeaders" placeholder="Chest,Waist,Hips">
+      <label>Rows (JSON array)</label><textarea id="chartRows" placeholder='[{\"size\":\"S\",\"values\":[\"88-92\",\"72-76\",\"92-96\"]}]'></textarea>
+      <label>Apply to</label>
+      <select id="chartApplyTo">
+        <option value="all">All products</option>
+        <option value="types">Product types</option>
+        <option value="tags">Tags</option>
+        <option value="products">Specific products</option>
+      </select>
+      <label>Match values (comma separated)</label><input id="chartMatch" placeholder="Shirt,T-Shirt">
+      <button type="submit" class="save">Save Chart</button>
+    </form>
+    <div id="chartList"></div>
+  </div>
+
+  <div id="fitfinder" class="panel">
+    <h2>Fit Finder</h2>
+    <form id="fitForm">
+      <label>Questions (JSON array)</label>
+      <textarea id="fitQuestions" placeholder='[{\"text\":\"How do you prefer your fit?\",\"options\":[\"Tight\",\"Regular\",\"Loose\"]}]'></textarea>
+      <label>Results (JSON array)</label>
+      <textarea id="fitResults" placeholder='[{\"size\":\"S\",\"scores\":[0,0]},{\"size\":\"M\",\"scores\":[1,1]},{\"size\":\"L\",\"scores\":[2,2]}]'></textarea>
+      <button type="submit" class="save">Save Fit Finder</button>
+    </form>
+    <div id="fitDisplay"></div>
+  </div>
+
+  <script>
+    const shop = new URLSearchParams(window.location.search).get('shop');
+
+    function showTab(id) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    async function api(path, opts) {
+      const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    async function loadCharts() {
+      const { charts } = await api('/api/size-charts');
+      const list = document.getElementById('chartList');
+      list.innerHTML = charts.length ? '<h3>Saved charts</h3>' : '<p>No charts yet.</p>';
+      charts.forEach(c => {
+        const el = document.createElement('div');
+        el.className = 'item';
+        el.innerHTML = '<b>' + (c.name || 'Untitled') + '</b> (' + (c.apply_to || 'all') + ') <button onclick="editChart(' + JSON.stringify(c).replace(/"/g, '&quot;') + ')">Edit</button> <button onclick="deleteChart(' + JSON.stringify(c.id).replace(/"/g, '&quot;') + ')">Delete</button><pre>' + JSON.stringify(c, null, 2) + '</pre>';
+        list.appendChild(el);
+      });
+    }
+
+    window.editChart = function(c) {
+      document.getElementById('chartId').value = c.id || '';
+      document.getElementById('chartName').value = c.name || '';
+      document.getElementById('chartUnit').value = c.unit || '';
+      document.getElementById('chartHeaders').value = (c.headers || []).join(',');
+      document.getElementById('chartRows').value = JSON.stringify(c.rows || [], null, 2);
+      document.getElementById('chartApplyTo').value = c.apply_to || 'all';
+      const match = c.apply_to === 'types' ? c.types : c.apply_to === 'tags' ? c.tags : c.products;
+      document.getElementById('chartMatch').value = match || '';
+    };
+
+    window.deleteChart = async function(id) {
+      if (!confirm('Delete?')) return;
+      await api('/api/size-charts/' + id, { method: 'DELETE' });
+      loadCharts();
+    };
+
+    document.getElementById('chartForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('chartId').value;
+      const applyTo = document.getElementById('chartApplyTo').value;
+      const body = {
+        id,
+        name: document.getElementById('chartName').value,
+        unit: document.getElementById('chartUnit').value,
+        headers: document.getElementById('chartHeaders').value.split(',').map(s => s.trim()).filter(Boolean),
+        rows: JSON.parse(document.getElementById('chartRows').value || '[]'),
+        apply_to: applyTo,
+        types: applyTo === 'types' ? document.getElementById('chartMatch').value : '',
+        tags: applyTo === 'tags' ? document.getElementById('chartMatch').value : '',
+        products: applyTo === 'products' ? document.getElementById('chartMatch').value : ''
+      };
+      await api(id ? '/api/size-charts/' + id : '/api/size-charts', {
+        method: id ? 'PUT' : 'POST',
+        body: JSON.stringify(body)
+      });
+      e.target.reset();
+      loadCharts();
+    });
+
+    async function loadFitFinder() {
+      const { finder } = await api('/api/fit-finder');
+      const display = document.getElementById('fitDisplay');
+      if (finder) {
+        document.getElementById('fitQuestions').value = JSON.stringify(finder.questions || [], null, 2);
+        document.getElementById('fitResults').value = JSON.stringify(finder.results || [], null, 2);
+        display.innerHTML = '<div class="item"><pre>' + JSON.stringify(finder, null, 2) + '</pre></div>';
+      } else {
+        display.innerHTML = '<p>No fit finder configured.</p>';
+      }
+    }
+
+    document.getElementById('fitForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        questions: JSON.parse(document.getElementById('fitQuestions').value || '[]'),
+        results: JSON.parse(document.getElementById('fitResults').value || '[]')
+      };
+      await api('/api/fit-finder', { method: 'POST', body: JSON.stringify(body) });
+      loadFitFinder();
+    });
+
+    loadCharts();
+    loadFitFinder();
+  </script>
 </body>
 </html>`);
 });

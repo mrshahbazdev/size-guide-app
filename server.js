@@ -64,6 +64,43 @@ app.get('/', async (req, res) => {
     error('Session lookup error: ' + e.message);
   }
 
+  // Ensure default data for the shop on first load
+  try {
+    const [charts, finder] = await Promise.all([db.getCharts(shop), db.getFitFinder(shop)]);
+    if (!charts.length && !finder) {
+      await db.saveChart({
+        shop,
+        name: 'Standard Apparel',
+        unit: 'cm',
+        headers: ['Chest', 'Waist', 'Hips'],
+        rows: [
+          { size: 'S', values: ['88-92', '72-76', '92-96'] },
+          { size: 'M', values: ['96-100', '80-84', '100-104'] },
+          { size: 'L', values: ['104-108', '88-92', '108-112'] }
+        ],
+        apply_to: 'types',
+        types: 'Shirt,T-Shirt',
+        tags: '',
+        products: ''
+      });
+      await db.saveFitFinder({
+        shop,
+        questions: [
+          { text: 'How do you prefer your fit?', options: ['Tight', 'Regular', 'Loose'] },
+          { text: 'What is your chest measurement?', options: ['< 90 cm', '90-100 cm', '> 100 cm'] }
+        ],
+        results: [
+          { size: 'S', scores: [0, 0] },
+          { size: 'M', scores: [1, 1] },
+          { size: 'L', scores: [2, 2] }
+        ]
+      });
+      log('Default size chart and fit finder created for ' + shop);
+    }
+  } catch (e) {
+    error('Default data error: ' + e.message);
+  }
+
   res.set('Content-Type', 'text/html');
   res.send(`<!DOCTYPE html>
 <html lang="en">

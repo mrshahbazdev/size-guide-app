@@ -30,6 +30,7 @@ const shopify = shopifyApp({
 
 const { verifyAppProxy } = require('./lib/verifyProxy');
 const { verifyHmac } = require('./lib/verifyHmac');
+const { adminAuth } = require('./lib/adminAuth');
 const db = require('./db');
 
 const app = express();
@@ -147,15 +148,16 @@ app.get('/', async (req, res) => {
     }
 
     async function api(path, opts = {}) {
+      const url = path + window.location.search;
       const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
       try {
         if (authenticatedFetch) {
-          const res = await authenticatedFetch(path, { ...opts, headers });
+          const res = await authenticatedFetch(url, { ...opts, headers });
           if (!res.ok) throw new Error(await res.text());
           return res.json();
         }
       } catch (e) { console.warn('authenticatedFetch failed', e); }
-      const res = await fetch(path, { ...opts, headers });
+      const res = await fetch(url, { ...opts, headers });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     }
@@ -268,8 +270,8 @@ app.use('/apps/size-guide', require('./routes/proxy'));
 // Direct fit-finder route kept for local/development testing
 app.use('/apps/fit-finder', require('./routes/fit-finder'));
 
-// Admin API
-app.use('/api', shopify.validateAuthenticatedSession(), require('./routes/admin'));
+// Admin API (HMAC or session token)
+app.use('/api', adminAuth(shopify), require('./routes/admin'));
 
 app.get('/logs', (req, res) => {
   res.set('Content-Type', 'text/plain');
@@ -287,6 +289,6 @@ app.use((err, req, res, next) => {
 db.init().then(() => {
   app.listen(PORT, () => log(`Size Guide app listening on port ${PORT}`));
 }).catch(err => {
-  error('Database init failed: ' + (err.message || err));
-  process.exit(1);
+  error('Database init failed, continuing with JSON file storage: ' + (err.message || err));
+  app.listen(PORT, () => log(`Size Guide app listening on port ${PORT}`));
 });

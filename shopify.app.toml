@@ -7,7 +7,6 @@ embedded = true
 scopes = "read_products"
 
 [build]
-include_config_on_deploy = true
 
 [auth]
 redirect_urls = [

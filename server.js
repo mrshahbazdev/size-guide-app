@@ -30,6 +30,7 @@ const shopify = shopifyApp({
 
 const { verifyAppProxy } = require('./lib/verifyProxy');
 const { verifyHmac } = require('./lib/verifyHmac');
+const db = require('./db');
 
 const app = express();
 app.use(express.json());
@@ -124,4 +125,9 @@ app.use((err, req, res, next) => {
   res.status(500).send('Internal server error');
 });
 
-app.listen(PORT, () => log(`Size Guide app listening on port ${PORT}`));
+db.init().then(() => {
+  app.listen(PORT, () => log(`Size Guide app listening on port ${PORT}`));
+}).catch(err => {
+  error('Database init failed: ' + (err.message || err));
+  process.exit(1);
+});

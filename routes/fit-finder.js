@@ -11,25 +11,24 @@ function proxyAuth(req, res, next) {
   next();
 }
 
-router.get('/', proxyAuth, (req, res) => {
-  const { shop } = req.query;
-  if (!shop) return res.status(400).send('Shop required');
-  const finder = db.getFitFinder(shop);
-  if (!finder) return res.set('Content-Type', 'application/liquid').send('<p>{{ "fit_finder.not_configured" | t }}</p>');
+router.get('/', proxyAuth, async (req, res, next) => {
+  try {
+    const { shop } = req.query;
+    if (!shop) return res.status(400).send('Shop required');
+    const finder = await db.getFitFinder(shop);
+    if (!finder) return res.set('Content-Type', 'application/liquid').send('<p>{{ "fit_finder.not_configured" | t }}</p>');
 
-  const questions = (finder.questions || []).map((q, i) => `
-    <div class="fit-finder__question" data-question-index="${i}">
-      <p class="fit-finder__question-text">${q.text}</p>
-      <div class="fit-finder__options">
-        ${(q.options || []).map((opt, j) => `<label><input type="radio" name="q${i}" value="${j}" required> ${opt}</label>`).join('')}
+    const questions = (finder.questions || []).map((q, i) => `
+      <div class="fit-finder__question" data-question-index="${i}">
+        <p class="fit-finder__question-text">${q.text}</p>
+        <div class="fit-finder__options">
+          ${(q.options || []).map((opt, j) => `<label><input type="radio" name="q${i}" value="${j}" required> ${opt}</label>`).join('')}
+        </div>
       </div>
-    </div>
-  `).join('');
+    `).join('');
 
-  const results = (finder.results || []).map((r, i) => `<option value="${i}">${r.size}</option>`).join('');
-
-  res.set('Content-Type', 'application/liquid');
-  res.send(`
+    res.set('Content-Type', 'application/liquid');
+    res.send(`
 <div class="fit-finder" data-fit-finder data-results='${JSON.stringify(finder.results || [])}'>
   <h3 class="fit-finder__title">{{ 'fit_finder.title' | t }}</h3>
   <form class="fit-finder__form" data-fit-finder-form>
@@ -41,7 +40,8 @@ router.get('/', proxyAuth, (req, res) => {
   </div>
 </div>
 <script src="{{ 'fit-finder.js' | asset_url }}" defer></script>
-  `);
+    `);
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

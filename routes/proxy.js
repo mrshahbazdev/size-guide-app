@@ -60,22 +60,26 @@ function renderFitFinder(finder) {
 }
 
 // Default size guide
-router.get('/', proxyAuth, (req, res) => {
-  const shop = req.query.shop;
-  if (!shop) return res.status(400).send('Shop required');
-  const product = getProductFromQuery(req.query);
-  const chart = db.findChartForProduct(shop, product);
-  res.set('Content-Type', 'application/liquid');
-  res.send(renderSizeChart(chart));
+router.get('/', proxyAuth, async (req, res, next) => {
+  try {
+    const shop = req.query.shop;
+    if (!shop) return res.status(400).send('Shop required');
+    const product = getProductFromQuery(req.query);
+    const chart = await db.findChartForProduct(shop, product);
+    res.set('Content-Type', 'application/liquid');
+    res.send(renderSizeChart(chart));
+  } catch (err) { next(err); }
 });
 
 // Fit finder at child path
-router.get('/fit-finder', proxyAuth, (req, res) => {
-  const shop = req.query.shop;
-  if (!shop) return res.status(400).send('Shop required');
-  const finder = db.getFitFinder(shop);
-  res.set('Content-Type', 'application/liquid');
-  res.send(renderFitFinder(finder));
+router.get('/fit-finder', proxyAuth, async (req, res, next) => {
+  try {
+    const shop = req.query.shop;
+    if (!shop) return res.status(400).send('Shop required');
+    const finder = await db.getFitFinder(shop);
+    res.set('Content-Type', 'application/liquid');
+    res.send(renderFitFinder(finder));
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

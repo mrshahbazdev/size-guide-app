@@ -1,24 +1,31 @@
 require('dotenv').config();
-const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 
-const useMysql = process.env.DB_HOST && process.env.DB_DATABASE;
-
+let mysql;
 let pool;
 let jsonDb;
 
+const useMysql = process.env.DB_HOST && process.env.DB_DATABASE;
+
 if (useMysql) {
-  pool = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_DATABASE,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-  });
-} else {
+  try {
+    mysql = require('mysql2/promise');
+    pool = mysql.createPool({
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_DATABASE,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+    });
+  } catch (e) {
+    console.warn('mysql2 not installed, falling back to JSON file storage:', e.message);
+  }
+}
+
+if (!pool) {
   const dbDir = path.join(__dirname, 'data');
   const chartsPath = path.join(dbDir, 'size_charts.json');
   const fittersPath = path.join(dbDir, 'fit_finders.json');
@@ -42,22 +49,22 @@ async function initTables() {
       shop VARCHAR(255) NOT NULL,
       name VARCHAR(255) NOT NULL,
       unit VARCHAR(20),
-      headers JSON,
-      rows JSON,
+      headers LONGTEXT,
+      \`rows\` LONGTEXT,
       apply_to VARCHAR(20),
-      types TEXT,
-      tags TEXT,
-      products TEXT,
-      INDEX (shop)
+      types LONGTEXT,
+      tags LONGTEXT,
+      products LONGTEXT,
+      INDEX idx_shop (shop)
     )
   `);
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS fit_finders (
       id VARCHAR(50) PRIMARY KEY,
       shop VARCHAR(255) NOT NULL,
-      questions JSON,
-      results JSON,
-      INDEX (shop)
+      questions LONGTEXT,
+      results LONGTEXT,
+      INDEX idx_shop (shop)
     )
   `);
 }
@@ -71,7 +78,7 @@ function chartFromRow(row) {
     name: row.name,
     unit: row.unit,
     headers: JSON.parse(row.headers || '[]'),
-    rows: JSON.parse(row.rows || '[]'),
+    rows: JSON.parse(row['rows'] || '[]'),
     apply_to: row.apply_to,
     types: row.types,
     tags: row.tags,
@@ -121,10 +128,10 @@ const db = {
       return chart;
     }
     await pool.execute(
-      `INSERT INTO size_charts (id, shop, name, unit, headers, rows, apply_to, types, tags, products)
+      `INSERT INTO size_charts (id, shop, name, unit, headers, \`rows\`, apply_to, types, tags, products)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
-       name=VALUES(name), unit=VALUES(unit), headers=VALUES(headers), rows=VALUES(rows),
+       name=VALUES(name), unit=VALUES(unit), headers=VALUES(headers), \`rows\`=VALUES(\`rows\`),
        apply_to=VALUES(apply_to), types=VALUES(types), tags=VALUES(tags), products=VALUES(products)`,
       chartToRow(chart)
     );

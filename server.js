@@ -3,6 +3,7 @@ const express = require('express');
 const { shopifyApp } = require('@shopify/shopify-app-express');
 const { ApiVersion } = require('@shopify/shopify-api');
 const path = require('path');
+const { JsonSessionStorage } = require('./lib/sessionStorage');
 
 const PORT = process.env.PORT || 3000;
 
@@ -23,6 +24,7 @@ const shopify = shopifyApp({
   webhooks: {
     path: '/api/webhooks',
   },
+  sessionStorage: new JsonSessionStorage(),
 });
 
 const { verifyAppProxy } = require('./lib/verifyProxy');

@@ -71,7 +71,8 @@ app.get('/', async (req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="shopify-api-key" content="${process.env.SHOPIFY_API_KEY || ''}">
   <title>Size Guide + Fit Finder</title>
-  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" async></script>
+  <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
+  <script src="https://unpkg.com/@shopify/app-bridge-utils@3"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; color: #202223; }
     h1 { font-size: 20px; }
@@ -130,7 +131,26 @@ app.get('/', async (req, res) => {
   </div>
 
   <script>
-    const shop = new URLSearchParams(window.location.search).get('shop');
+    const params = new URLSearchParams(window.location.search);
+    const shop = params.get('shop');
+    const host = params.get('host');
+
+    const AppBridge = window['app-bridge'];
+    const appBridgeUtils = window['app-bridge-utils'];
+    let app;
+    if (AppBridge && host && shop) {
+      app = AppBridge.createApp({ apiKey: '${process.env.SHOPIFY_API_KEY || ''}', host: host, shopOrigin: shop });
+    }
+
+    async function getToken() {
+      if (!app || !appBridgeUtils || !appBridgeUtils.getSessionToken) return '';
+      try {
+        return await appBridgeUtils.getSessionToken(app);
+      } catch (e) {
+        console.warn('Session token failed', e);
+        return '';
+      }
+    }
 
     function showTab(id) {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -139,8 +159,11 @@ app.get('/', async (req, res) => {
       event.target.classList.add('active');
     }
 
-    async function api(path, opts) {
-      const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+    async function api(path, opts = {}) {
+      const token = await getToken();
+      const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+      if (token) headers.Authorization = 'Bearer ' + token;
+      const res = await fetch(path, { ...opts, headers });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     }

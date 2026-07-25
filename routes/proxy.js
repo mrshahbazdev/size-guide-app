@@ -59,21 +59,23 @@ function renderFitFinder(finder) {
 <script src="{{ 'fit-finder.js' | asset_url }}" defer></script>`;
 }
 
+// Default size guide
 router.get('/', proxyAuth, (req, res) => {
   const shop = req.query.shop;
-  const extraPath = (req.query.extra_path || '').replace(/^\//, '');
   if (!shop) return res.status(400).send('Shop required');
-
-  if (extraPath === 'fit-finder') {
-    const finder = db.getFitFinder(shop);
-    res.set('Content-Type', 'application/liquid');
-    return res.send(renderFitFinder(finder));
-  }
-
   const product = getProductFromQuery(req.query);
   const chart = db.findChartForProduct(shop, product);
   res.set('Content-Type', 'application/liquid');
   res.send(renderSizeChart(chart));
+});
+
+// Fit finder at child path
+router.get('/fit-finder', proxyAuth, (req, res) => {
+  const shop = req.query.shop;
+  if (!shop) return res.status(400).send('Shop required');
+  const finder = db.getFitFinder(shop);
+  res.set('Content-Type', 'application/liquid');
+  res.send(renderFitFinder(finder));
 });
 
 module.exports = router;

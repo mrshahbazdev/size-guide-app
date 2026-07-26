@@ -50,9 +50,12 @@
             </div>
 
             <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Measurement columns (comma separated)</label>
-              <input id="chartHeaders" placeholder="Chest, Waist, Hips" class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm px-3 py-2 border">
-              <p class="text-xs text-gray-500 mt-1">Changing columns updates the row builder below.</p>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Measurement columns</label>
+              <div class="w-full rounded-md border border-gray-300 shadow-sm focus-within:border-green-500 focus-within:ring-green-500 sm:text-sm px-2 py-1 bg-white flex flex-wrap gap-2" onclick="document.getElementById('headerInput').focus()">
+                <span id="headerChips" class="contents"></span>
+                <input id="headerInput" type="text" class="outline-none flex-1 min-w-[80px] py-1" placeholder="Type and press Enter" onkeydown="headerInputKey(event)">
+              </div>
+              <p class="text-xs text-gray-500 mt-1">Press Enter or comma to add a column. Click chip to remove.</p>
             </div>
 
             <div class="mb-4">
@@ -145,6 +148,7 @@
 
     let chartRows = [];
     let matchValues = [];
+    let headerValues = [];
 
     function showTab(id) {
       document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
@@ -178,8 +182,7 @@
     }
 
     function getHeaders() {
-      const raw = document.getElementById('chartHeaders').value || '';
-      return raw.split(',').map(s => s.trim()).filter(Boolean);
+      return headerValues.slice();
     }
 
     function newChart() {
@@ -188,12 +191,43 @@
       document.getElementById('chartId').value = '';
       document.getElementById('chartUnit').value = 'cm';
       document.getElementById('chartApplyTo').value = 'all';
-      document.getElementById('chartHeaders').value = 'Chest, Waist, Hips';
+      headerValues = ['Chest','Waist','Hips']; renderHeaderChips();
       chartRows = [{ size: '', values: ['', '', ''] }];
       matchValues = [];
       renderRows();
       renderChips();
       onApplyToChange();
+    }
+
+    function headerInputKey(e) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const input = e.target;
+        const value = input.value.split(',').map(s => s.trim()).filter(Boolean);
+        value.forEach(v => { if (v && !headerValues.includes(v)) headerValues.push(v); });
+        input.value = '';
+        renderHeaderChips();
+      }
+      if (e.key === 'Backspace' && e.target.value === '' && headerValues.length) {
+        headerValues.pop();
+        renderHeaderChips();
+      }
+    }
+
+    window.removeHeaderChip = function(v) {
+      headerValues = headerValues.filter(x => x !== v);
+      renderHeaderChips();
+    };
+
+    function renderHeaderChips() {
+      const container = document.getElementById('headerChips');
+      container.innerHTML = headerValues.map(v => `
+        <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
+          ${escapeHtml(v)}
+          <button type="button" onclick="removeHeaderChip('${v.replace(/'/g, "\\'")}')" class="text-blue-700 hover:text-blue-900">&times;</button>
+        </span>
+      `).join('');
+      renderRows();
     }
 
     function onApplyToChange() {
@@ -249,7 +283,7 @@
       renderRows();
     }
 
-    document.getElementById('chartHeaders').addEventListener('input', renderRows);
+    
 
     function matchInputKey(e) {
       if (e.key === 'Enter' || e.key === ',') {
@@ -311,7 +345,7 @@
       document.getElementById('chartId').value = c.id || '';
       document.getElementById('chartName').value = c.name || '';
       document.getElementById('chartUnit').value = c.unit || 'cm';
-      document.getElementById('chartHeaders').value = (c.headers || []).join(', ');
+      headerValues = (c.headers || []).slice(); renderHeaderChips();
       document.getElementById('chartApplyTo').value = c.apply_to || 'all';
       chartRows = JSON.parse(JSON.stringify(c.rows || []));
       const match = c.apply_to === 'types' ? c.types : c.apply_to === 'tags' ? c.tags : c.products;

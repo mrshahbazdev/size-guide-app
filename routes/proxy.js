@@ -87,7 +87,6 @@ function renderSizeChart(chart, ctx) {
     price: ctx.price || '',
     available: ctx.available !== false,
     customer_id: ctx.logged_in_customer_id || '',
-    signature: ctx.signature || '',
     headers: (chart.headers || []).map(normalizeKey),
   });
   return `
@@ -190,7 +189,6 @@ function renderSizeChart(chart, ctx) {
       if (!Object.keys(measurements).length) { sizeEl.innerHTML = '<span class="sg-recommendation__error">Enter at least one measurement.</span>'; recommendation.classList.add('sg-recommendation--visible'); return; }
       try {
         var url = '/apps/size-guide/measurements?shop=' + encodeURIComponent(ctx.shop)
-          + (ctx.signature ? '&signature=' + encodeURIComponent(ctx.signature) : '')
           + (ctx.customer_id ? '&logged_in_customer_id=' + encodeURIComponent(ctx.customer_id) : '')
           + (ctx.product_type ? '&product_type=' + encodeURIComponent(ctx.product_type) : '')
           + (ctx.tags ? '&tags=' + encodeURIComponent(ctx.tags) : '')
@@ -316,7 +314,7 @@ function renderFitFinder(finder, ctx) {
 
   function track(event, data){
     try {
-      var url = '/apps/size-guide/track?shop=' + encodeURIComponent(ctx.shop) + (ctx.signature ? '&signature=' + encodeURIComponent(ctx.signature) : '');
+      var url = '/apps/size-guide/track?shop=' + encodeURIComponent(ctx.shop);
       fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: event, data: data || {} }) });
     } catch (e) {}
   }

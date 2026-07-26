@@ -181,6 +181,20 @@ function renderSizeChart(chart, ctx) {
   var recommendBtn = widget.querySelector('[data-recommend-btn]');
   var recommendation = widget.querySelector('[data-recommendation]');
   var sizeEl = widget.querySelector('[data-recommend-size]');
+  function buildMeasurementUrl(){
+    var ds = widget.dataset;
+    var shop = ds.shop || '';
+    var url = '/apps/size-guide/measurements?shop=' + encodeURIComponent(shop)
+      + (ds.loggedInCustomerId ? '&logged_in_customer_id=' + encodeURIComponent(ds.loggedInCustomerId) : '')
+      + (ds.productType ? '&product_type=' + encodeURIComponent(ds.productType) : '')
+      + (ds.productTags ? '&tags=' + encodeURIComponent(ds.productTags) : '')
+      + (ds.productHandle ? '&handle=' + encodeURIComponent(ds.productHandle) : '')
+      + (ds.collectionHandles ? '&collection_handles=' + encodeURIComponent(ds.collectionHandles) : '')
+      + (ds.customerTags ? '&customer_tags=' + encodeURIComponent(ds.customerTags) : '')
+      + (ds.productPrice ? '&price=' + encodeURIComponent(ds.productPrice) : '')
+      + '&available=' + encodeURIComponent(ds.productAvailable === 'false' ? 'false' : 'true');
+    return url;
+  }
   if (recommendBtn) {
     recommendBtn.addEventListener('click', async function(){
       var measureEl = widget.querySelector('[data-measurements]');
@@ -191,15 +205,8 @@ function renderSizeChart(chart, ctx) {
       });
       if (!Object.keys(measurements).length) { sizeEl.innerHTML = '<span class="sg-recommendation__error">Enter at least one measurement.</span>'; recommendation.classList.add('sg-recommendation--visible'); return; }
       try {
-        var url = '/apps/size-guide/measurements?shop=' + encodeURIComponent(ctx.shop)
-          + (ctx.customer_id ? '&logged_in_customer_id=' + encodeURIComponent(ctx.customer_id) : '')
-          + (ctx.product_type ? '&product_type=' + encodeURIComponent(ctx.product_type) : '')
-          + (ctx.tags ? '&tags=' + encodeURIComponent(ctx.tags) : '')
-          + (ctx.collection_handles ? '&collection_handles=' + encodeURIComponent(ctx.collection_handles) : '')
-          + (ctx.customer_tags ? '&customer_tags=' + encodeURIComponent(ctx.customer_tags) : '')
-          + (ctx.price ? '&price=' + encodeURIComponent(ctx.price) : '')
-          + '&available=' + encodeURIComponent(ctx.available ? 'true' : 'false');
-        var res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product_handle: ctx.product_handle, measurements: measurements, unit: ctx.unit }) });
+        var url = buildMeasurementUrl();
+        var res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product_handle: widget.dataset.productHandle || ctx.product_handle || '', measurements: measurements, unit: ctx.unit || '${defaultUnit}' }) });
         var text = await res.text();
         var data;
         try { data = JSON.parse(text); } catch (parseErr) { throw new Error(text.substring(0, 200)); }

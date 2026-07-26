@@ -94,11 +94,19 @@
       newScript.remove();
     });
   }
+  function copyDataSticky(from, to){
+    if (!from || !to) return;
+    for (var key in from.dataset) {
+      to.setAttribute('data-' + key.replace(/[A-Z]/g, function(m){ return '-' + m.toLowerCase(); }), from.getAttribute('data-' + key.replace(/[A-Z]/g, function(m){ return '-' + m.toLowerCase(); })) || from.dataset[key]);
+    }
+  }
   tab.addEventListener('click', async function(){
     drawer.classList.remove('hidden');
     try {
       var res = await fetch(buildUrl());
       content.innerHTML = await res.text();
+      var widget = content.querySelector('[data-size-guide]') || content.querySelector('.sg-card');
+      if (widget) copyDataSticky(tab, widget);
       runStickyScripts(content);
     } catch (e) { content.innerHTML = '<p>Could not load size guide.</p>'; }
   });

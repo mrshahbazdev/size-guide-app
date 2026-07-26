@@ -13,6 +13,15 @@
     return `${proxyUrl}?shop=${encodeURIComponent(shop)}&product_type=${type}&tags=${tags}&handle=${handle}&collection_handles=${collections}&logged_in_customer_id=${customerId}&customer_tags=${customerTags}&price=${price}&available=${available}`;
   }
 
+  function kebab(str) { return str.replace(/[A-Z]/g, m => '-' + m.toLowerCase()); }
+
+  function copyDataAttributes(from, to) {
+    if (!from || !to) return;
+    for (const key in from.dataset) {
+      to.setAttribute('data-' + kebab(key), from.getAttribute('data-' + kebab(key)) || from.dataset[key]);
+    }
+  }
+
   function runScripts(container) {
     container.querySelectorAll('script').forEach(script => {
       const newScript = document.createElement('script');
@@ -28,6 +37,8 @@
       const res = await fetch(buildProxyUrl(el));
       const html = await res.text();
       target.innerHTML = html;
+      const widget = target.querySelector('[data-size-guide]') || target.querySelector('.sg-card');
+      if (widget) copyDataAttributes(el, widget);
       runScripts(target);
     } catch (e) {
       target.innerHTML = '<p>Could not load size guide.</p>';

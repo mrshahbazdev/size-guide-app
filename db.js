@@ -25,39 +25,45 @@ if (useMysql) {
   }
 }
 
-if (!pool) {
-  const dbDir = path.join(__dirname, 'data');
-  const chartsPath = path.join(dbDir, 'size_charts.json');
-  const fittersPath = path.join(dbDir, 'fit_finders.json');
-  const analyticsPath = path.join(dbDir, 'analytics.json');
-  const profilesPath = path.join(dbDir, 'customer_profiles.json');
-  if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
-  if (!fs.existsSync(chartsPath)) fs.writeFileSync(chartsPath, JSON.stringify([]));
-  if (!fs.existsSync(fittersPath)) fs.writeFileSync(fittersPath, JSON.stringify([]));
-  if (!fs.existsSync(analyticsPath)) fs.writeFileSync(analyticsPath, JSON.stringify([]));
-  if (!fs.existsSync(profilesPath)) fs.writeFileSync(profilesPath, JSON.stringify([]));
+const dbDir = path.join(__dirname, 'data');
+const chartsPath = path.join(dbDir, 'size_charts.json');
+const fittersPath = path.join(dbDir, 'fit_finders.json');
+const analyticsPath = path.join(dbDir, 'analytics.json');
+const profilesPath = path.join(dbDir, 'customer_profiles.json');
+const historyPath = path.join(dbDir, 'customer_measurement_history.json');
+if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+if (!fs.existsSync(chartsPath)) fs.writeFileSync(chartsPath, JSON.stringify([]));
+if (!fs.existsSync(fittersPath)) fs.writeFileSync(fittersPath, JSON.stringify([]));
+if (!fs.existsSync(analyticsPath)) fs.writeFileSync(analyticsPath, JSON.stringify([]));
+if (!fs.existsSync(profilesPath)) fs.writeFileSync(profilesPath, JSON.stringify([]));
+if (!fs.existsSync(historyPath)) fs.writeFileSync(historyPath, JSON.stringify([]));
 
-  const read = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
-  const write = (p, data) => fs.writeFileSync(p, JSON.stringify(data, null, 2));
+const read = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
+const write = (p, data) => fs.writeFileSync(p, JSON.stringify(data, null, 2));
 
-  jsonDb = {
-    readCharts: () => read(chartsPath),
-    writeCharts: (data) => write(chartsPath, data),
-    readFitters: () => read(fittersPath),
-    writeFitters: (data) => write(fittersPath, data),
-    readAnalytics: () => read(analyticsPath),
-    writeAnalytics: (data) => write(analyticsPath, data),
-    readProfiles: () => read(profilesPath),
-    writeProfiles: (data) => write(profilesPath, data),
-  };
-}
+jsonDb = {
+  readCharts: () => read(chartsPath),
+  writeCharts: (data) => write(chartsPath, data),
+  readFitters: () => read(fittersPath),
+  writeFitters: (data) => write(fittersPath, data),
+  readAnalytics: () => read(analyticsPath),
+  writeAnalytics: (data) => write(analyticsPath, data),
+  readProfiles: () => read(profilesPath),
+  writeProfiles: (data) => write(profilesPath, data),
+  readHistory: () => read(historyPath),
+  writeHistory: (data) => write(historyPath, data),
+};
 
 async function initTables() {
   if (!pool) return;
+
+  // Tables that may have been created with long VARCHAR keys are recreated with safe lengths.
+  await pool.execute('DROP TABLE IF EXISTS customer_profiles, customer_measurement_history');
+
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS size_charts (
       id VARCHAR(50) PRIMARY KEY,
-      shop VARCHAR(255) NOT NULL,
+      shop VARCHAR(80) NOT NULL,
       name VARCHAR(255) NOT NULL,
       unit VARCHAR(20),
       headers LONGTEXT,
@@ -83,21 +89,23 @@ async function initTables() {
   try { await pool.execute('ALTER TABLE size_charts ADD COLUMN max_price INT DEFAULT NULL'); } catch (e) {}
   try { await pool.execute('ALTER TABLE size_charts ADD COLUMN in_stock_only TINYINT DEFAULT 0'); } catch (e) {}
   try { await pool.execute('ALTER TABLE size_charts ADD COLUMN customer_tags LONGTEXT'); } catch (e) {}
+  try { await pool.execute('ALTER TABLE size_charts MODIFY COLUMN shop VARCHAR(80) NOT NULL'); } catch (e) {}
 
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS fit_finders (
       id VARCHAR(50) PRIMARY KEY,
-      shop VARCHAR(255) NOT NULL,
+      shop VARCHAR(80) NOT NULL,
       questions LONGTEXT,
       results LONGTEXT,
       INDEX idx_shop (shop)
     )
   `);
+  try { await pool.execute('ALTER TABLE fit_finders MODIFY COLUMN shop VARCHAR(80) NOT NULL'); } catch (e) {}
 
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS analytics (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      shop VARCHAR(255) NOT NULL,
+      shop VARCHAR(80) NOT NULL,
       event VARCHAR(50) NOT NULL,
       product_handle VARCHAR(255),
       size VARCHAR(50),
@@ -108,12 +116,13 @@ async function initTables() {
       INDEX idx_created (created_at)
     )
   `);
+  try { await pool.execute('ALTER TABLE analytics MODIFY COLUMN shop VARCHAR(80) NOT NULL'); } catch (e) {}
 
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS customer_profiles (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      shop VARCHAR(255) NOT NULL,
-      customer_id VARCHAR(255) NOT NULL,
+      shop VARCHAR(80) NOT NULL,
+      customer_id VARCHAR(80) NOT NULL,
       measurements LONGTEXT,
       unit VARCHAR(20),
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -126,8 +135,8 @@ async function initTables() {
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS customer_measurement_history (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      shop VARCHAR(255) NOT NULL,
-      customer_id VARCHAR(255) NOT NULL,
+      shop VARCHAR(80) NOT NULL,
+      customer_id VARCHAR(80) NOT NULL,
       measurements LONGTEXT,
       unit VARCHAR(20),
       product_handle VARCHAR(255),
@@ -137,8 +146,6 @@ async function initTables() {
       INDEX idx_shop (shop)
     )
   `);
-  try { await pool.execute('ALTER TABLE customer_measurement_history ADD COLUMN product_handle VARCHAR(255)'); } catch (e) {}
-  try { await pool.execute('ALTER TABLE customer_measurement_history ADD COLUMN recommended_size VARCHAR(20)'); } catch (e) {}
 }
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
@@ -213,7 +220,13 @@ function normalizeKey(str) {
 
 const db = {
   init: async () => {
-    if (pool) await initTables();
+    if (!pool) return;
+    try {
+      await initTables();
+    } catch (err) {
+      console.error('[DB INIT ERROR] MySQL init failed, falling back to JSON file storage:', err.message || err);
+      pool = null;
+    }
   },
 
   getCharts: async (shop) => {

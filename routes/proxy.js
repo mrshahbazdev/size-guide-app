@@ -12,14 +12,14 @@ function proxyAuth(req, res, next) {
 }
 
 function renderSizeChart(chart) {
-  if (!chart) return '<p>{{ "size_guide.no_chart" | t }}</p>';
+  if (!chart) return '<p>No size chart is available for this product.</p>';
   const headers = ['Size'].concat(chart.headers || []);
   const thead = headers.map(h => `<th>${h}</th>`).join('');
   const tbody = (chart.rows || []).map(row => `<tr><td>${row.size}</td>${(row.values || []).map(v => `<td>${v}</td>`).join('')}</tr>`).join('');
   return `
 <div class="size-guide" data-size-guide>
-  <h3 class="size-guide__title">{{ 'size_guide.title' | t }}</h3>
-  <p class="size-guide__unit">{{ 'size_guide.unit' | t }}: ${chart.unit}</p>
+  <h3 class="size-guide__title">Size Guide</h3>
+  <p class="size-guide__unit">Unit: ${chart.unit}</p>
   <table class="size-guide__table">
     <thead><tr>${thead}</tr></thead>
     <tbody>${tbody}</tbody>
@@ -36,7 +36,7 @@ function getProductFromQuery(q) {
 }
 
 function renderFitFinder(finder) {
-  if (!finder) return '<p>{{ "fit_finder.not_configured" | t }}</p>';
+  if (!finder) return '<p>Fit finder is not configured.</p>';
   const questions = (finder.questions || []).map((q, i) => `
     <div class="fit-finder__question" data-question-index="${i}">
       <p class="fit-finder__question-text">${q.text}</p>
@@ -47,16 +47,39 @@ function renderFitFinder(finder) {
   `).join('');
   return `
 <div class="fit-finder" data-fit-finder data-results='${JSON.stringify(finder.results || [])}'>
-  <h3 class="fit-finder__title">{{ 'fit_finder.title' | t }}</h3>
+  <h3 class="fit-finder__title">Find your fit</h3>
   <form class="fit-finder__form" data-fit-finder-form>
     ${questions}
-    <button type="submit" class="button button--primary">{{ 'fit_finder.find_size' | t }}</button>
+    <button type="submit" class="button button--primary">Find my size</button>
   </form>
   <div class="fit-finder__result hidden" data-fit-finder-result>
-    <p>{{ 'fit_finder.recommended' | t }}: <strong data-fit-finder-size></strong></p>
+    <p>Recommended size: <strong data-fit-finder-size></strong></p>
   </div>
 </div>
-<script src="{{ 'fit-finder.js' | asset_url }}" defer></script>`;
+<script>
+(function(){
+  var form = document.querySelector('[data-fit-finder-form]');
+  var result = document.querySelector('[data-fit-finder-result]');
+  var sizeEl = document.querySelector('[data-fit-finder-size]');
+  var results = JSON.parse(document.querySelector('[data-fit-finder]').dataset.results || '[]');
+  if (!form) return;
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var scores = [];
+    form.querySelectorAll('[data-question-index]').forEach(function(q){
+      var selected = q.querySelector('input[type="radio"]:checked');
+      scores.push(selected ? parseInt(selected.value, 10) : 0);
+    });
+    var best = null, bestDiff = Infinity;
+    results.forEach(function(r){
+      var diff = r.scores.reduce(function(sum, s, i){ return sum + Math.abs(s - (scores[i] || 0)); }, 0);
+      if (diff < bestDiff) { bestDiff = diff; best = r.size; }
+    });
+    sizeEl.textContent = best || '—';
+    result.classList.remove('hidden');
+  });
+})();
+</script>`;
 }
 
 // Default size guide

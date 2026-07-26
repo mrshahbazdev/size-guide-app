@@ -464,9 +464,9 @@
 
     function openPreviewModal() {
       const id = currentChartId;
-      const base = '/api/preview';
+      const base = '/api/preview' + (id ? '/' + id : '');
       const sep = base.includes('?') ? '&' : '?';
-      const src = base + sep + qs.slice(1) + (id ? '&chart_id=' + id : '');
+      const src = base + sep + qs.slice(1);
       document.getElementById('previewFrame').src = src;
       document.getElementById('previewModal').classList.remove('hidden');
     }
@@ -582,7 +582,7 @@
         async function loadAnalytics() {
       try {
         const days = document.getElementById('analyticsDays').value;
-        const stats = await api('/api/analytics?days=' + days);
+        const stats = await api('/api/analytics', { method: 'POST', body: JSON.stringify({ days: parseInt(days, 10) }) });
         document.getElementById('analyticsGrid').innerHTML = `
           <div class="card p-4"><div class="text-xs font-bold text-slate-500 uppercase">Size guide opens</div><div class="text-3xl font-extrabold text-slate-900 mt-1">${stats.size_guide_opens || 0}</div></div>
           <div class="card p-4"><div class="text-xs font-bold text-slate-500 uppercase">Fit finder submits</div><div class="text-3xl font-extrabold text-slate-900 mt-1">${stats.fit_finder_submits || 0}</div></div>

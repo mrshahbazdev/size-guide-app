@@ -74,23 +74,24 @@ router.post('/size-charts/import', async (req, res, next) => {
 });
 
 // Preview chart as rendered storefront HTML
-router.get('/preview', async (req, res, next) => {
+async function previewChart(req, res, next) {
   try {
     const shop = getShop(req, res);
     let chart;
-    if (req.query.chart_id) {
-      chart = await db.getChartById(shop, req.query.chart_id);
+    if (req.params.chartId) {
+      chart = await db.getChartById(shop, req.params.chartId);
     } else {
       chart = (await db.getCharts(shop))[0];
     }
     if (!chart) return res.status(404).send('No chart found');
-    // Reuse proxy render but with admin context
     const proxy = require('./proxy');
     const html = proxy.renderSizeChart(chart, { shop });
     res.set('Content-Type', 'text/html');
     res.send(html.replace('{% layout none %}', ''));
   } catch (err) { next(err); }
-});
+}
+router.get('/preview/:chartId', previewChart);
+router.get('/preview', previewChart);
 
 // Fit finder
 router.get('/fit-finder', async (req, res, next) => {
@@ -109,11 +110,11 @@ router.post('/fit-finder', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Analytics
-router.get('/analytics', async (req, res, next) => {
+// Analytics (POST so days can be passed in body without breaking HMAC query)
+router.post('/analytics', async (req, res, next) => {
   try {
     const shop = getShop(req, res);
-    const days = parseInt(req.query.days, 10) || 30;
+    const days = parseInt(req.body.days, 10) || 30;
     const stats = await db.getAnalytics(shop, { days });
     res.json(stats);
   } catch (err) { next(err); }

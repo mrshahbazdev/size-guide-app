@@ -2,11 +2,18 @@
   assign link_text = block.settings.link_text | default: 'Find my size'
   assign style_class = 'fit-finder-button--' | append: block.settings.button_style
   assign display_mode = block.settings.display_mode | default: 'page'
+  assign button_color = block.settings.button_color | default: '#008060'
+  assign text_color = block.settings.text_color | default: '#ffffff'
+  assign border_radius = block.settings.border_radius | default: 4
+  assign button_padding = block.settings.button_padding | default: 14
+  assign full_width = block.settings.full_width | default: false
+  assign modal_max_width = block.settings.modal_max_width | default: 680
 -%}
 
 <div class="fit-finder-button-wrapper fit-finder-button-wrapper--{{ block.settings.alignment }}">
   {%- if display_mode == 'modal' -%}
-    <button type="button" class="fit-finder-button {{ style_class }}" data-fit-finder-open data-fit-finder-url="{{ shop.url }}/apps/size-guide/fit-finder">
+    <button type="button" class="fit-finder-button {{ style_class }}{% if full_width %} fit-finder-button--full{% endif %}" data-fit-finder-open data-fit-finder-url="{{ shop.url }}/apps/size-guide/fit-finder"
+      style="--btn-color: {{ button_color }}; --btn-text: {{ text_color }}; --btn-radius: {{ border_radius }}px; --btn-padding: {{ button_padding }}px;">
       {{ link_text }}
     </button>
     <div class="fit-finder-modal hidden" data-fit-finder-modal role="dialog" aria-label="Fit finder">
@@ -19,7 +26,8 @@
       </div>
     </div>
   {%- else -%}
-    <a href="{{ shop.url }}/apps/size-guide/fit-finder" class="fit-finder-button {{ style_class }}">
+    <a href="{{ shop.url }}/apps/size-guide/fit-finder" class="fit-finder-button {{ style_class }}{% if full_width %} fit-finder-button--full{% endif %}"
+      style="--btn-color: {{ button_color }}; --btn-text: {{ text_color }}; --btn-radius: {{ border_radius }}px; --btn-padding: {{ button_padding }}px;">
       {{ link_text }}
     </a>
   {%- endif -%}
@@ -33,6 +41,9 @@
 
 .fit-finder-button {
   --btn-color: #008060;
+  --btn-text: #ffffff;
+  --btn-radius: 4px;
+  --btn-padding: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -44,16 +55,17 @@
   text-decoration: none;
   cursor: pointer;
   border: none;
-  border-radius: 4px;
-  padding: 10px 18px;
+  border-radius: var(--btn-radius);
+  padding: var(--btn-padding) calc(var(--btn-padding) * 1.4);
   transition: opacity 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
 }
+.fit-finder-button--full { width: 100%; }
 .fit-finder-button:hover { opacity: 0.92; }
 .fit-finder-button:active { transform: translateY(1px); }
 
 .fit-finder-button--primary {
   background-color: var(--btn-color);
-  color: #ffffff;
+  color: var(--btn-text);
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 .fit-finder-button--secondary {
@@ -80,13 +92,14 @@
 .fit-finder-modal__overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
 }
 .fit-finder-modal__content {
   position: relative;
   background: #fff;
-  border-radius: 8px;
-  max-width: 680px;
+  border-radius: 12px;
+  max-width: {{ modal_max_width }}px;
   width: calc(100% - 32px);
   max-height: 90vh;
   overflow: auto;
@@ -139,6 +152,54 @@
         { "value": "link", "label": "Text link" }
       ],
       "default": "primary"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button color",
+      "default": "#008060"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Button text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "label": "Button border radius",
+      "min": 0,
+      "max": 32,
+      "step": 1,
+      "default": 4,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "button_padding",
+      "label": "Button padding",
+      "min": 8,
+      "max": 30,
+      "step": 2,
+      "default": 14,
+      "unit": "px"
+    },
+    {
+      "type": "checkbox",
+      "id": "full_width",
+      "label": "Full width button",
+      "default": false
+    },
+    {
+      "type": "range",
+      "id": "modal_max_width",
+      "label": "Modal max width",
+      "min": 320,
+      "max": 900,
+      "step": 20,
+      "default": 680,
+      "unit": "px"
     },
     {
       "type": "select",

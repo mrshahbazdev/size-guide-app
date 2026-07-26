@@ -1,6 +1,8 @@
 {%- liquid
   assign link_text = block.settings.link_text | default: 'Size guide'
   assign style_class = 'size-guide-button--' | append: block.settings.button_style
+  assign button_color = block.settings.button_color | default: '#008060'
+  assign text_color = block.settings.text_color | default: '#ffffff'
 -%}
 
 <div class="size-guide-button-wrapper size-guide-button-wrapper--{{ block.settings.alignment }}">
@@ -10,6 +12,7 @@
     data-product-tags="{{ product.tags | join: ',' | escape }}"
     data-product-handle="{{ product.handle | escape }}"
     data-app-proxy-url="{{ shop.url }}/apps/size-guide"
+    style="--btn-color: {{ button_color }}; --btn-bg: {{ button_color }}; --btn-text: {{ text_color }};"
     aria-label="{{ link_text }}">
     {{ link_text }}
   </button>
@@ -32,6 +35,9 @@
 .size-guide-button-wrapper--right { justify-content: flex-end; }
 
 .size-guide-button {
+  --btn-color: #008060;
+  --btn-bg: #008060;
+  --btn-text: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -50,17 +56,17 @@
 .size-guide-button:active { transform: translateY(1px); }
 
 .size-guide-button--primary {
-  background-color: #008060;
-  color: #ffffff;
+  background-color: var(--btn-bg);
+  color: var(--btn-text);
 }
 .size-guide-button--secondary {
   background-color: transparent;
-  color: #008060;
-  box-shadow: inset 0 0 0 2px #008060;
+  color: var(--btn-color);
+  box-shadow: inset 0 0 0 2px var(--btn-color);
 }
 .size-guide-button--link {
   background-color: transparent;
-  color: inherit;
+  color: var(--btn-color);
   text-decoration: underline;
   padding: 0;
 }
@@ -103,17 +109,8 @@
 .size-guide-modal__body { padding: 32px 24px 24px; }
 .size-guide__title { margin-top: 0; font-size: 20px; }
 .size-guide__unit { color: #6b7280; margin-bottom: 12px; }
-.size-guide__table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 12px;
-  font-size: 14px;
-}
-.size-guide__table th, .size-guide__table td {
-  border: 1px solid #e5e7eb;
-  padding: 10px 8px;
-  text-align: center;
-}
+.size-guide__table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+.size-guide__table th, .size-guide__table td { border: 1px solid #e5e7eb; padding: 10px 8px; text-align: center; }
 .size-guide__table th { background: #f9fafb; font-weight: 600; }
 .size-guide__table tr:nth-child(even) { background: #fafafa; }
 </style>
@@ -141,6 +138,18 @@
         { "value": "link", "label": "Text link" }
       ],
       "default": "primary"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button color",
+      "default": "#008060"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Button text color",
+      "default": "#ffffff"
     },
     {
       "type": "select",

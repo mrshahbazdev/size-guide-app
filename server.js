@@ -73,8 +73,8 @@ app.get('/', hmacCheck, shopify.ensureInstalledOnShop(), async (req, res) => {
           { size: 'M', values: ['96-100', '80-84', '100-104'] },
           { size: 'L', values: ['104-108', '88-92', '108-112'] }
         ],
-        apply_to: 'types',
-        types: 'Shirt,T-Shirt',
+        apply_to: 'all',
+        types: '',
         tags: '',
         products: ''
       });

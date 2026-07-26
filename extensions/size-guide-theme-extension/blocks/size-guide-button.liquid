@@ -4,19 +4,73 @@
   data-product-tags="{{ product.tags | join: ',' | escape }}"
   data-product-handle="{{ product.handle | escape }}"
   data-app-proxy-url="{{ shop.url }}/apps/size-guide"
-  aria-label="{{ 'size_guide.open' | t }}">
-  {{ 'size_guide.open' | t }}
+  aria-label="{{ block.settings.link_text | default: 'Size guide' }}">
+  {{ block.settings.link_text | default: 'Size guide' }}
 </button>
 
-<div class="size-guide-modal hidden" data-size-guide-modal role="dialog" aria-label="{{ 'size_guide.title' | t }}">
+<div class="size-guide-modal hidden" data-size-guide-modal role="dialog" aria-label="Size guide">
   <div class="size-guide-modal__overlay" data-size-guide-close></div>
   <div class="size-guide-modal__content">
-    <button type="button" class="size-guide-modal__close" data-size-guide-close aria-label="{{ 'general.accessibility.lightbox_close' | t }}">&times;</button>
-    <div data-size-guide-content>
-      <p>{{ 'size_guide.loading' | t }}</p>
+    <button type="button" class="size-guide-modal__close" data-size-guide-close aria-label="Close">&times;</button>
+    <div data-size-guide-content class="size-guide-modal__body">
+      <p>Loading size guide...</p>
     </div>
   </div>
 </div>
+
+<style>
+.size-guide-link {
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.size-guide-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.size-guide-modal.hidden { display: none; }
+.size-guide-modal__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+.size-guide-modal__content {
+  position: relative;
+  background: #fff;
+  border-radius: 8px;
+  max-width: 640px;
+  width: calc(100% - 32px);
+  max-height: 80vh;
+  overflow: auto;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+.size-guide-modal__close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+  z-index: 1;
+}
+.size-guide-modal__body {
+  padding: 32px 24px 24px;
+}
+.size-guide__title { margin-top: 0; }
+.size-guide__table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.size-guide__table th, .size-guide__table td { border: 1px solid #e5e7eb; padding: 8px; text-align: center; }
+.size-guide__table th { background: #f9fafb; }
+</style>
 
 <script src="{{ 'size-guide.js' | asset_url }}" defer></script>
 

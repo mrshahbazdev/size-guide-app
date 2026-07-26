@@ -44,7 +44,7 @@
           <button onclick="showTab('charts')" id="tab-charts" class="tab-btn flex-1 px-5 py-3.5 text-sm font-bold border-b-2 tab-active">Size Charts</button>
           <button onclick="showTab('fitfinder')" id="tab-fitfinder" class="tab-btn flex-1 px-5 py-3.5 text-sm font-bold border-b-2 tab-inactive">Fit Finder</button>
           <button onclick="showTab('analytics')" id="tab-analytics" class="tab-btn flex-1 px-5 py-3.5 text-sm font-bold border-b-2 tab-inactive">Analytics</button>
-          <button onclick="showTab('logs')" id="tab-logs" class="tab-btn flex-1 px-5 py-3.5 text-sm font-bold border-b-2 tab-inactive">Logs</button>
+          
         </nav>
       </div>
 
@@ -167,14 +167,6 @@
           </div>
         </div>
 
-        <div id="panel-logs" class="panel hidden">
-          <h2 class="text-lg font-bold text-slate-900 mb-4">App Logs</h2>
-          <div class="bg-slate-900 rounded-xl p-4 overflow-auto shadow-inner" style="max-height:70vh">
-            <pre id="logsContent" class="text-xs font-mono text-green-400 whitespace-pre-wrap">Loading...</pre>
-          </div>
-          <button onclick="loadLogs()" class="btn-secondary mt-3">Refresh logs</button>
-        </div>
-
         <div id="panel-analytics" class="panel hidden">
           <div class="flex items-center justify-between mb-5">
             <div>
@@ -282,7 +274,6 @@
       const active = document.getElementById('tab-' + id);
       active.classList.remove('tab-inactive');
       active.classList.add('tab-active');
-      if (id === 'logs') loadLogs();
       if (id === 'analytics') loadAnalytics();
       if (id === 'charts') renderChartPreview();
     }
@@ -296,7 +287,8 @@
     }
 
     async function api(path, opts = {}) {
-      const url = path + qs;
+      const sep = path.includes('?') ? '&' : '?';
+      const url = path + sep + qs.slice(1);
       const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
       const res = await fetch(url, { ...opts, headers });
       if (!res.ok) {
@@ -472,7 +464,9 @@
 
     function openPreviewModal() {
       const id = currentChartId;
-      const src = '/api/preview' + qs + (id ? (qs.includes('?') ? '&' : '?') + 'chart_id=' + id : '');
+      const base = '/api/preview';
+      const sep = base.includes('?') ? '&' : '?';
+      const src = base + sep + qs.slice(1) + (id ? '&chart_id=' + id : '');
       document.getElementById('previewFrame').src = src;
       document.getElementById('previewModal').classList.remove('hidden');
     }
@@ -585,15 +579,7 @@
     window.exportCsv = exportCsv;
     window.importCsv = importCsv;
 
-    async function loadLogs() {
-      try {
-        const res = await fetch('/logs' + qs);
-        const text = await res.text();
-        document.getElementById('logsContent').textContent = text;
-      } catch (e) { document.getElementById('logsContent').textContent = 'Failed to load logs'; }
-    }
-
-    async function loadAnalytics() {
+        async function loadAnalytics() {
       try {
         const days = document.getElementById('analyticsDays').value;
         const stats = await api('/api/analytics?days=' + days);

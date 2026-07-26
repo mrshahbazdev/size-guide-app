@@ -1,21 +1,24 @@
 {
   "size_guide": {
-    "open": "Size guide",
-    "title": "Size guide",
     "loading": "Loading size guide...",
-    "no_chart": "No size chart available for this product.",
-    "unit": "Unit"
+    "open": "Size guide",
+    "title": "Size Guide",
+    "unit": "Unit",
+    "no_chart": "No size chart is available for this product."
   },
   "fit_finder": {
+    "loading": "Loading fit finder...",
     "open": "Find my size",
-    "title": "Fit finder",
-    "not_configured": "Fit finder is not configured yet.",
-    "find_size": "Find my size",
-    "recommended": "Recommended size"
+    "title": "Find your perfect fit",
+    "subtitle": "Answer a couple of quick questions and we'll recommend the best size.",
+    "submit": "Find my size",
+    "recommended": "Recommended size",
+    "result_note": "Based on your answers, this size should fit best.",
+    "select_all": "Please answer all questions."
   },
   "general": {
     "accessibility": {
-      "lightbox_close": "Close"
+      "close": "Close"
     }
   }
 }

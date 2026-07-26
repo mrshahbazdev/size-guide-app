@@ -1,33 +1,29 @@
 (() => {
-  const widget = document.querySelector('[data-fit-finder]');
-  if (!widget) return;
-
-  const results = JSON.parse(widget.dataset.results || '[]');
-  const form = widget.querySelector('[data-fit-finder-form]');
-  const resultBox = widget.querySelector('[data-fit-finder-result]');
-  const sizeEl = widget.querySelector('[data-fit-finder-size]');
-
-  if (form) {
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const data = new FormData(form);
-      const answers = [];
-      let i = 0;
-      while (data.has(`q${i}`)) {
-        answers.push(parseInt(data.get(`q${i}`), 10));
-        i++;
+  const buttons = document.querySelectorAll('[data-fit-finder-open]');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const wrapper = btn.closest('.fit-finder-button-wrapper');
+      const modal = wrapper ? wrapper.querySelector('[data-fit-finder-modal]') : document.querySelector('[data-fit-finder-modal]');
+      if (!modal) return;
+      const content = modal.querySelector('[data-fit-finder-content]');
+      if (content) {
+        try {
+          const res = await fetch(btn.dataset.fitFinderUrl);
+          const html = await res.text();
+          content.innerHTML = html;
+        } catch (e) {
+          content.innerHTML = '<p>Could not load fit finder.</p>';
+        }
       }
+      modal.classList.remove('hidden');
+    });
+  });
 
-      let best = null;
-      for (const r of results) {
-        const score = answers.reduce((sum, a, idx) => sum + (r.scores[idx] === a ? 1 : 0), 0);
-        if (!best || score > best.score) best = { ...r, score };
-      }
-
-      if (best && resultBox && sizeEl) {
-        sizeEl.textContent = best.size;
-        resultBox.classList.remove('hidden');
+  document.querySelectorAll('[data-fit-finder-modal]').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target.hasAttribute('data-fit-finder-close') || e.target === modal || e.target.closest('[data-fit-finder-close]')) {
+        modal.classList.add('hidden');
       }
     });
-  }
+  });
 })();

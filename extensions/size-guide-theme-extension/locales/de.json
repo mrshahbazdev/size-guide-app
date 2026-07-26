@@ -1,0 +1,24 @@
+{
+  "size_guide": {
+    "loading": "Größentabelle wird geladen...",
+    "open": "Größentabelle",
+    "title": "Größentabelle",
+    "unit": "Einheit",
+    "no_chart": "Für dieses Produkt ist keine Größentabelle verfügbar."
+  },
+  "fit_finder": {
+    "loading": "Passform-Finder wird geladen...",
+    "open": "Meine Größe finden",
+    "title": "Finde deine perfekte Passform",
+    "subtitle": "Beantworte ein paar kurze Fragen und wir empfehlen dir die beste Größe.",
+    "submit": "Meine Größe finden",
+    "recommended": "Empfohlene Größe",
+    "result_note": "Basierend auf deinen Antworten sollte diese Größe am besten passen.",
+    "select_all": "Bitte beantworte alle Fragen."
+  },
+  "general": {
+    "accessibility": {
+      "close": "Schließen"
+    }
+  }
+}

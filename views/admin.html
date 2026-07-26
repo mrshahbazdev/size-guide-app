@@ -25,6 +25,7 @@
       <div class="border-b border-gray-200">
         <nav class="flex" aria-label="Tabs">
           <button onclick="showTab('charts')" id="tab-charts" class="tab-btn flex-1 px-6 py-4 text-sm font-medium border-b-2 border-green-600 text-green-700 bg-green-50/50">Size Charts</button>
+          <button onclick="showTab('logs')" id="tab-logs" class="tab-btn flex-1 px-6 py-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50">Logs</button>
           <button onclick="showTab('fitfinder')" id="tab-fitfinder" class="tab-btn flex-1 px-6 py-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50">Fit Finder</button>
         </nav>
       </div>
@@ -47,6 +48,16 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">Unit</label>
                 <input id="chartUnit" value="cm" class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm px-3 py-2 border">
               </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                <input id="chartPriority" type="number" value="0" class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm px-3 py-2 border">
+                <p class="text-xs text-gray-500 mt-1">Higher priority charts are shown first.</p>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Image URL (optional)</label>
+              <input id="chartImageUrl" type="url" placeholder="https://..." class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm px-3 py-2 border">
             </div>
 
             <div class="mb-4">
@@ -105,6 +116,7 @@
                 <tr>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applies To</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Match</th>
                   <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -113,6 +125,14 @@
               <tbody id="chartTableBody" class="bg-white divide-y divide-gray-200"></tbody>
             </table>
           </div>
+        </div>
+
+        <div id="panel-logs" class="panel hidden">
+          <h2 class="text-lg font-semibold mb-4">App Logs</h2>
+          <div class="bg-gray-900 rounded-lg p-4 overflow-auto" style="max-height:60vh">
+            <pre id="logsContent" class="text-xs font-mono text-green-400 whitespace-pre-wrap">Loading...</pre>
+          </div>
+          <button onclick="loadLogs()" class="mt-3 inline-flex justify-center rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">Refresh</button>
         </div>
 
         <div id="panel-fitfinder" class="panel hidden">
@@ -218,6 +238,8 @@
       document.getElementById('chartForm').reset();
       document.getElementById('chartId').value = '';
       document.getElementById('chartUnit').value = 'cm';
+      document.getElementById('chartPriority').value = '0';
+      document.getElementById('chartImageUrl').value = '';
       document.getElementById('chartApplyTo').value = 'all';
       headerValues = ['Chest','Waist','Hips']; renderHeaderChips();
       chartRows = [{ size: '', values: ['', '', ''] }];
@@ -350,6 +372,7 @@
         <tr>
           <td class="px-4 py-3 text-sm font-medium text-gray-900">${escapeHtml(c.name || 'Untitled')}</td>
           <td class="px-4 py-3 text-sm text-gray-600">${escapeHtml(c.unit || '-')}</td>
+          <td class="px-4 py-3 text-sm text-gray-600">${escapeHtml(c.priority || '0')}</td>
           <td class="px-4 py-3 text-sm text-gray-600 capitalize">${escapeHtml(c.apply_to || 'all')}</td>
           <td class="px-4 py-3 text-sm text-gray-600">${escapeHtml(c.apply_to === 'types' ? c.types : c.apply_to === 'tags' ? c.tags : c.products || '—')}</td>
           <td class="px-4 py-3 text-right text-sm font-medium">
@@ -365,6 +388,8 @@
       document.getElementById('chartId').value = c.id || '';
       document.getElementById('chartName').value = c.name || '';
       document.getElementById('chartUnit').value = c.unit || 'cm';
+      document.getElementById('chartPriority').value = Number(c.priority || 0);
+      document.getElementById('chartImageUrl').value = c.image_url || '';
       headerValues = (c.headers || []).slice(); renderHeaderChips();
       document.getElementById('chartApplyTo').value = c.apply_to || 'all';
       chartRows = JSON.parse(JSON.stringify(c.rows || []));
@@ -394,6 +419,8 @@
           id,
           name: document.getElementById('chartName').value,
           unit: document.getElementById('chartUnit').value,
+          priority: parseInt(document.getElementById('chartPriority').value || '0', 10),
+          image_url: document.getElementById('chartImageUrl').value,
           headers: getHeaders(),
           rows: chartRows.map(r => ({ size: r.size, values: r.values })),
           apply_to: applyTo,
@@ -410,6 +437,14 @@
         loadCharts();
       } catch (err) { toast(err.message || 'Save failed', 'error'); }
     });
+
+    async function loadLogs() {
+      try {
+        const res = await fetch('/logs' + qs);
+        const text = await res.text();
+        document.getElementById('logsContent').textContent = text;
+      } catch (e) { document.getElementById('logsContent').textContent = 'Failed to load logs'; }
+    }
 
     async function loadCharts() {
       try {
@@ -596,6 +631,7 @@
 
     loadCharts();
     loadFitFinder();
+    loadLogs();
   </script>
 </body>
 </html>

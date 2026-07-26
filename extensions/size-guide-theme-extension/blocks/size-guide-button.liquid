@@ -3,27 +3,39 @@
   assign style_class = 'size-guide-button--' | append: block.settings.button_style
   assign button_color = block.settings.button_color | default: '#008060'
   assign text_color = block.settings.text_color | default: '#ffffff'
+  assign display_mode = block.settings.display_mode | default: 'button'
 -%}
 
 <div class="size-guide-button-wrapper size-guide-button-wrapper--{{ block.settings.alignment }}">
-  <button type="button" class="size-guide-button {{ style_class }}" data-size-guide-open
-    data-shop="{{ shop.permanent_domain }}"
-    data-product-type="{{ product.type | escape }}"
-    data-product-tags="{{ product.tags | join: ',' | escape }}"
-    data-product-handle="{{ product.handle | escape }}"
-    data-app-proxy-url="{{ shop.url }}/apps/size-guide"
-    style="--btn-color: {{ button_color }}; --btn-bg: {{ button_color }}; --btn-text: {{ text_color }};"
-    aria-label="{{ link_text }}">
-    {{ link_text }}
-  </button>
+  {%- if display_mode == 'inline' -%}
+    <div class="size-guide-inline" data-size-guide-inline
+      data-shop="{{ shop.permanent_domain }}"
+      data-product-type="{{ product.type | escape }}"
+      data-product-tags="{{ product.tags | join: ',' | escape }}"
+      data-product-handle="{{ product.handle | escape }}"
+      data-app-proxy-url="{{ shop.url }}/apps/size-guide">
+      <p class="size-guide-inline__loading">Loading size guide...</p>
+    </div>
+  {%- else -%}
+    <button type="button" class="size-guide-button {{ style_class }}" data-size-guide-open
+      data-shop="{{ shop.permanent_domain }}"
+      data-product-type="{{ product.type | escape }}"
+      data-product-tags="{{ product.tags | join: ',' | escape }}"
+      data-product-handle="{{ product.handle | escape }}"
+      data-app-proxy-url="{{ shop.url }}/apps/size-guide"
+      style="--btn-color: {{ button_color }}; --btn-bg: {{ button_color }}; --btn-text: {{ text_color }};"
+      aria-label="{{ link_text }}">
+      {{ link_text }}
+    </button>
+  {%- endif -%}
 </div>
 
 <div class="size-guide-modal hidden" data-size-guide-modal role="dialog" aria-label="Size guide">
   <div class="size-guide-modal__overlay" data-size-guide-close></div>
   <div class="size-guide-modal__content">
-    <button type="button" class="size-guide-modal__close" data-size-guide-close aria-label="Close">&times;</button>
+    <button type="button" class="size-guide-modal__close" data-size-guide-close aria-label="{{ 'general.accessibility.close' | t }}">&times;</button>
     <div data-size-guide-content class="size-guide-modal__body">
-      <p>Loading size guide...</p>
+      <p>{{ 'size_guide.loading' | t }}</p>
     </div>
   </div>
 </div>
@@ -33,6 +45,9 @@
 .size-guide-button-wrapper--left { justify-content: flex-start; }
 .size-guide-button-wrapper--center { justify-content: center; }
 .size-guide-button-wrapper--right { justify-content: flex-end; }
+
+.size-guide-inline { width: 100%; }
+.size-guide-inline__loading { color: #6b7280; font-size: 14px; }
 
 .size-guide-button {
   --btn-color: #008060;
@@ -122,6 +137,16 @@
   "name": "Size guide button",
   "target": "section",
   "settings": [
+    {
+      "type": "select",
+      "id": "display_mode",
+      "label": "Display mode",
+      "options": [
+        { "value": "button", "label": "Button (opens modal)" },
+        { "value": "inline", "label": "Inline (shows on page load)" }
+      ],
+      "default": "button"
+    },
     {
       "type": "text",
       "id": "link_text",

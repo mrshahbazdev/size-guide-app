@@ -55,9 +55,13 @@ async function initTables() {
       types LONGTEXT,
       tags LONGTEXT,
       products LONGTEXT,
+      priority INT DEFAULT 0,
+      image_url LONGTEXT,
       INDEX idx_shop (shop)
     )
   `);
+  try { await pool.execute('ALTER TABLE size_charts ADD COLUMN priority INT DEFAULT 0'); } catch (e) {}
+  try { await pool.execute('ALTER TABLE size_charts ADD COLUMN image_url LONGTEXT'); } catch (e) {}
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS fit_finders (
       id VARCHAR(50) PRIMARY KEY,
@@ -83,6 +87,8 @@ function chartFromRow(row) {
     types: row.types,
     tags: row.tags,
     products: row.products,
+    priority: row.priority == null ? 0 : Number(row.priority),
+    image_url: row.image_url || '',
   };
 }
 
@@ -98,6 +104,8 @@ function chartToRow(chart) {
     chart.types,
     chart.tags,
     chart.products,
+    chart.priority == null ? 0 : Number(chart.priority),
+    chart.image_url || '',
   ];
 }
 
@@ -128,11 +136,12 @@ const db = {
       return chart;
     }
     await pool.execute(
-      `INSERT INTO size_charts (id, shop, name, unit, headers, \`rows\`, apply_to, types, tags, products)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO size_charts (id, shop, name, unit, headers, \`rows\`, apply_to, types, tags, products, priority, image_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
        name=VALUES(name), unit=VALUES(unit), headers=VALUES(headers), \`rows\`=VALUES(\`rows\`),
-       apply_to=VALUES(apply_to), types=VALUES(types), tags=VALUES(tags), products=VALUES(products)`,
+       apply_to=VALUES(apply_to), types=VALUES(types), tags=VALUES(tags), products=VALUES(products),
+       priority=VALUES(priority), image_url=VALUES(image_url)`,
       chartToRow(chart)
     );
     return chart;
@@ -151,16 +160,19 @@ const db = {
     const charts = await db.getCharts(shop);
     const type = product.product_type || '';
     const tags = Array.isArray(product.tags) ? product.tags : String(product.tags || '').split(',').map(t => t.trim()).filter(Boolean);
-    return charts.find(c => {
-      if (c.apply_to === 'all') return true;
-      if (c.apply_to === 'types' && (c.types || '').split(',').map(s => s.trim()).includes(type)) return true;
-      if (c.apply_to === 'tags') {
-        const chartTags = (c.tags || '').split(',').map(s => s.trim());
-        return tags.some(t => chartTags.includes(t));
-      }
-      if (c.apply_to === 'products' && (c.products || '').split(',').map(s => s.trim()).includes(product.handle)) return true;
-      return false;
+    const matched = [];
+    charts.forEach(c => {
+      let ok = false;
+      if (c.apply_to === 'all') ok = true;
+      else if (c.apply_to === 'types' && (c.types || '').split(',').map(s => s.trim()).filter(Boolean).includes(type)) ok = true;
+      else if (c.apply_to === 'tags') {
+        const chartTags = (c.tags || '').split(',').map(s => s.trim()).filter(Boolean);
+        if (tags.some(t => chartTags.includes(t))) ok = true;
+      } else if (c.apply_to === 'products' && (c.products || '').split(',').map(s => s.trim()).filter(Boolean).includes(product.handle)) ok = true;
+      if (ok) matched.push(c);
     });
+    matched.sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
+    return matched[0];
   },
 
   getFitFinder: async (shop) => {

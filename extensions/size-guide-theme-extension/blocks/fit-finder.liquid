@@ -1,12 +1,28 @@
 {%- liquid
   assign link_text = block.settings.link_text | default: 'Find my size'
   assign style_class = 'fit-finder-button--' | append: block.settings.button_style
+  assign display_mode = block.settings.display_mode | default: 'page'
 -%}
 
 <div class="fit-finder-button-wrapper fit-finder-button-wrapper--{{ block.settings.alignment }}">
-  <a href="{{ shop.url }}/apps/size-guide/fit-finder" class="fit-finder-button {{ style_class }}">
-    {{ link_text }}
-  </a>
+  {%- if display_mode == 'modal' -%}
+    <button type="button" class="fit-finder-button {{ style_class }}" data-fit-finder-open data-fit-finder-url="{{ shop.url }}/apps/size-guide/fit-finder">
+      {{ link_text }}
+    </button>
+    <div class="fit-finder-modal hidden" data-fit-finder-modal role="dialog" aria-label="Fit finder">
+      <div class="fit-finder-modal__overlay" data-fit-finder-close></div>
+      <div class="fit-finder-modal__content">
+        <button type="button" class="fit-finder-modal__close" data-fit-finder-close aria-label="{{ 'general.accessibility.close' | t }}">&times;</button>
+        <div data-fit-finder-content class="fit-finder-modal__body">
+          <p>{{ 'fit_finder.loading' | t }}</p>
+        </div>
+      </div>
+    </div>
+  {%- else -%}
+    <a href="{{ shop.url }}/apps/size-guide/fit-finder" class="fit-finder-button {{ style_class }}">
+      {{ link_text }}
+    </a>
+  {%- endif -%}
 </div>
 
 <style>
@@ -16,6 +32,7 @@
 .fit-finder-button-wrapper--right { justify-content: flex-end; }
 
 .fit-finder-button {
+  --btn-color: #008060;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -35,28 +52,77 @@
 .fit-finder-button:active { transform: translateY(1px); }
 
 .fit-finder-button--primary {
-  background-color: #008060;
+  background-color: var(--btn-color);
   color: #ffffff;
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 .fit-finder-button--secondary {
   background-color: transparent;
-  color: #008060;
-  box-shadow: inset 0 0 0 2px #008060;
+  color: var(--btn-color);
+  box-shadow: inset 0 0 0 2px var(--btn-color);
 }
 .fit-finder-button--link {
   background-color: transparent;
-  color: inherit;
+  color: var(--btn-color);
   text-decoration: underline;
   padding: 0;
 }
+
+.fit-finder-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fit-finder-modal.hidden { display: none; }
+.fit-finder-modal__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+.fit-finder-modal__content {
+  position: relative;
+  background: #fff;
+  border-radius: 8px;
+  max-width: 680px;
+  width: calc(100% - 32px);
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+}
+.fit-finder-modal__close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+  z-index: 1;
+}
+.fit-finder-modal__body { padding: 32px 24px 24px; }
 </style>
+
+<script src="{{ 'fit-finder.js' | asset_url }}" defer></script>
 
 {% schema %}
 {
   "name": "Fit finder",
   "target": "section",
   "settings": [
+    {
+      "type": "select",
+      "id": "display_mode",
+      "label": "Display mode",
+      "options": [
+        { "value": "page", "label": "Link to page" },
+        { "value": "modal", "label": "Open in modal" }
+      ],
+      "default": "page"
+    },
     {
       "type": "text",
       "id": "link_text",

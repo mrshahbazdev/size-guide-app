@@ -1,0 +1,24 @@
+{
+  "size_guide": {
+    "loading": "Cargando guía de tallas...",
+    "open": "Guía de tallas",
+    "title": "Guía de tallas",
+    "unit": "Unidad",
+    "no_chart": "No hay guía de tallas disponible para este producto."
+  },
+  "fit_finder": {
+    "loading": "Cargando buscador de talla...",
+    "open": "Encontrar mi talla",
+    "title": "Encuentra tu talla perfecta",
+    "subtitle": "Responde un par de preguntas rápidas y te recomendaremos la mejor talla.",
+    "submit": "Encontrar mi talla",
+    "recommended": "Talla recomendada",
+    "result_note": "Basado en tus respuestas, esta talla debería quedar mejor.",
+    "select_all": "Por favor responde todas las preguntas."
+  },
+  "general": {
+    "accessibility": {
+      "close": "Cerrar"
+    }
+  }
+}

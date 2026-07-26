@@ -33,6 +33,8 @@ async function ensureFitFinderForShop(shop) {
 const defaultChart = {
   name: 'Standard Apparel',
   unit: 'cm',
+  priority: 0,
+  image_url: '',
   headers: ['Chest', 'Waist', 'Hips'],
   rows: [
     { size: 'S', values: ['88-92', '72-76', '92-96'] },
@@ -56,17 +58,59 @@ function renderSizeChart(chart) {
   if (!chart) return '{% layout none %}<p>No size chart is available for this product.</p>';
   const headers = ['Size'].concat(chart.headers || []);
   const thead = headers.map(h => `<th>${h}</th>`).join('');
-  const tbody = (chart.rows || []).map(row => `<tr><td>${row.size}</td>${(row.values || []).map(v => `<td>${v}</td>`).join('')}</tr>`).join('');
+  const tbody = (chart.rows || []).map(row => `<tr><td>${row.size}</td>${(row.values || []).map(v => `<td class="size-cell">${v}</td>`).join('')}</tr>`).join('');
+  const imageHtml = chart.image_url ? `<img src="${chart.image_url}" alt="Size chart" class="size-guide__image">` : '';
+  const defaultUnit = (chart.unit || 'cm').toLowerCase() === 'inch' ? 'inch' : 'cm';
   return `
 {% layout none %}
+<style>
+.size-guide { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; }
+.size-guide__header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+.size-guide__title { margin:0; font-size:20px; }
+.size-guide__unit-row { display:flex; align-items:center; gap:8px; font-size:13px; color:#6b7280; }
+.size-guide__unit-row select { border:1px solid #d1d5db; border-radius:4px; padding:3px 6px; font-size:13px; }
+.size-guide__image { max-width:100%; height:auto; border-radius:6px; margin-bottom:16px; display:block; }
+.size-guide__table { width:100%; border-collapse:collapse; margin-top:8px; font-size:14px; }
+.size-guide__table th, .size-guide__table td { border:1px solid #e5e7eb; padding:10px 8px; text-align:center; }
+.size-guide__table th { background:#f9fafb; font-weight:600; }
+.size-guide__table tr:nth-child(even) { background:#fafafa; }
+</style>
 <div class="size-guide" data-size-guide>
-  <h3 class="size-guide__title">Size Guide</h3>
-  <p class="size-guide__unit">Unit: ${chart.unit}</p>
+  <div class="size-guide__header">
+    <h3 class="size-guide__title">Size Guide</h3>
+    <label class="size-guide__unit-row">
+      Unit:
+      <select data-unit-toggle data-default="${defaultUnit}">
+        <option value="cm" ${defaultUnit === 'cm' ? 'selected' : ''}>cm</option>
+        <option value="inch" ${defaultUnit === 'inch' ? 'selected' : ''}>inch</option>
+      </select>
+    </label>
+  </div>
+  ${imageHtml}
   <table class="size-guide__table">
     <thead><tr>${thead}</tr></thead>
     <tbody>${tbody}</tbody>
   </table>
-</div>`;
+</div>
+<script>
+(function(){
+  var widget = document.querySelector('[data-size-guide]');
+  if (!widget) return;
+  var toggle = widget.querySelector('[data-unit-toggle]');
+  var table = widget.querySelector('.size-guide__table');
+  var cells = table.querySelectorAll('.size-cell');
+  var originals = [];
+  cells.forEach(function(cell){ originals.push(cell.textContent); cell.dataset.orig = cell.textContent; });
+  function convert(unit){
+    var factor = unit === 'inch' ? 0.393700787 : 1;
+    cells.forEach(function(cell, i){
+      cell.textContent = originals[i].replace(/[0-9]+(?:\.[0-9]+)?/g, function(n){ return (Math.round(parseFloat(n) * factor * 10) / 10).toString(); });
+    });
+  }
+  toggle.addEventListener('change', function(){ convert(toggle.value); });
+  convert(toggle.value);
+})();
+</script>`;
 }
 
 function getProductFromQuery(q) {

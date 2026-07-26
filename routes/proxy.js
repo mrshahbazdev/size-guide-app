@@ -79,24 +79,158 @@ function getProductFromQuery(q) {
 
 function renderFitFinder(finder) {
   if (!finder) return '{% layout none %}<p>Fit finder is not configured.</p>';
-  const questions = (finder.questions || []).map((q, i) => `
-    <div class="fit-finder__question" data-question-index="${i}">
-      <p class="fit-finder__question-text">${q.text}</p>
-      <div class="fit-finder__options">
-        ${(q.options || []).map((opt, j) => `<label><input type="radio" name="q${i}" value="${j}" required> ${opt}</label>`).join('')}
+  const questions = (finder.questions || []).map((q, i) => {
+    const options = (q.options || []).map((opt, j) => `
+      <label class="fit-option">
+        <input type="radio" name="q${i}" value="${j}" required>
+        <span class="fit-option__box">${opt}</span>
+      </label>
+    `).join('');
+    return `
+      <div class="fit-question" data-question-index="${i}">
+        <div class="fit-question__number">Question ${i + 1}</div>
+        <h4 class="fit-question__text">${q.text}</h4>
+        <div class="fit-options">${options}</div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
   return `
 {% layout none %}
-<div class="fit-finder" data-fit-finder data-results='${JSON.stringify(finder.results || [])}'>
-  <h3 class="fit-finder__title">Find your fit</h3>
+<style>
+.fit-finder-card {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #1f2937;
+  background: #ffffff;
+  border-radius: 12px;
+}
+.fit-finder-card__header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.fit-finder-card__title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+.fit-finder-card__subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+.fit-question {
+  margin-bottom: 24px;
+}
+.fit-question__number {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #008060;
+  margin-bottom: 6px;
+}
+.fit-question__text {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+.fit-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.fit-option {
+  cursor: pointer;
+  display: flex;
+}
+.fit-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.fit-option__box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  color: #374151;
+}
+.fit-option:hover .fit-option__box {
+  border-color: #008060;
+  background: #f0fdf9;
+}
+.fit-option input:checked + .fit-option__box {
+  border-color: #008060;
+  background: #008060;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 128, 96, 0.25);
+}
+.fit-finder__submit {
+  width: 100%;
+  margin-top: 8px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #008060;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.fit-finder__submit:hover { background: #006e52; }
+.fit-finder__submit:disabled { background: #9ca3af; cursor: not-allowed; }
+.fit-result {
+  display: none;
+  margin-top: 24px;
+  text-align: center;
+  padding: 28px 20px;
+  border-radius: 10px;
+  background: #f0fdf9;
+  border: 1px solid #a7f3d0;
+}
+.fit-result--visible { display: block; }
+.fit-result__label {
+  font-size: 13px;
+  color: #047857;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+.fit-result__size {
+  font-size: 42px;
+  font-weight: 800;
+  color: #008060;
+  line-height: 1;
+}
+.fit-result__note {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #065f46;
+}
+</style>
+<div class="fit-finder-card" data-fit-finder data-results='${JSON.stringify(finder.results || [])}'>
+  <div class="fit-finder-card__header">
+    <h3 class="fit-finder-card__title">Find your perfect fit</h3>
+    <p class="fit-finder-card__subtitle">Answer a couple of quick questions and we'll recommend the best size.</p>
+  </div>
   <form class="fit-finder__form" data-fit-finder-form>
     ${questions}
-    <button type="submit" class="button button--primary">Find my size</button>
+    <button type="submit" class="fit-finder__submit">Find my size</button>
   </form>
-  <div class="fit-finder__result hidden" data-fit-finder-result>
-    <p>Recommended size: <strong data-fit-finder-size></strong></p>
+  <div class="fit-result" data-fit-finder-result>
+    <div class="fit-result__label">Recommended size</div>
+    <div class="fit-result__size" data-fit-finder-size></div>
+    <p class="fit-result__note">Based on your answers, this size should fit best.</p>
   </div>
 </div>
 <script>
@@ -108,18 +242,22 @@ function renderFitFinder(finder) {
   if (!form) return;
   form.addEventListener('submit', function(e){
     e.preventDefault();
+    var valid = true;
     var scores = [];
     form.querySelectorAll('[data-question-index]').forEach(function(q){
       var selected = q.querySelector('input[type="radio"]:checked');
+      if (!selected) valid = false;
       scores.push(selected ? parseInt(selected.value, 10) : 0);
     });
+    if (!valid) { alert('Please answer all questions.'); return; }
     var best = null, bestDiff = Infinity;
     results.forEach(function(r){
       var diff = r.scores.reduce(function(sum, s, i){ return sum + Math.abs(s - (scores[i] || 0)); }, 0);
       if (diff < bestDiff) { bestDiff = diff; best = r.size; }
     });
     sizeEl.textContent = best || '—';
-    result.classList.remove('hidden');
+    result.classList.add('fit-result--visible');
+    result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
 })();
 </script>`;

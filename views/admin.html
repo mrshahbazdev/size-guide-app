@@ -33,7 +33,7 @@
         <div id="panel-charts" class="panel">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold">Size Charts</h2>
-            <button onclick="resetChartForm()" class="text-sm text-green-700 font-medium hover:underline">+ New Chart</button>
+            <button onclick="newChart()" class="text-sm text-green-700 font-medium hover:underline">+ New Chart</button>
           </div>
 
           <form id="chartForm" class="bg-gray-50 rounded-lg border border-gray-200 p-5 mb-6 hidden">
@@ -48,30 +48,48 @@
                 <input id="chartUnit" value="cm" class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm px-3 py-2 border">
               </div>
             </div>
+
             <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Headers (comma separated)</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Measurement columns (comma separated)</label>
               <input id="chartHeaders" placeholder="Chest, Waist, Hips" class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm px-3 py-2 border">
+              <p class="text-xs text-gray-500 mt-1">Changing columns updates the row builder below.</p>
             </div>
+
             <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Rows (JSON array)</label>
-              <textarea id="chartRows" rows="5" placeholder='[{"size":"S","values":["88-92","72-76","92-96"]}]' class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm px-3 py-2 border font-mono"></textarea>
-              <p class="text-xs text-gray-500 mt-1">Each row needs size and values matching the headers count.</p>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Size rows</label>
+              <div class="bg-white rounded-md border border-gray-200 overflow-hidden">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-gray-100" id="rowsHead">
+                    <tr><th class="px-3 py-2 text-left font-medium text-gray-700">Size</th><th class="px-3 py-2 text-left font-medium text-gray-700">Chest</th></tr>
+                  </thead>
+                  <tbody id="rowsBody" class="divide-y divide-gray-200"></tbody>
+                </table>
+                <div class="px-3 py-2 border-t border-gray-200">
+                  <button type="button" onclick="addRow()" class="text-sm font-medium text-green-700 hover:text-green-900">+ Add size row</button>
+                </div>
+              </div>
             </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Apply to</label>
-                <select id="chartApplyTo" class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm px-3 py-2 border">
+                <select id="chartApplyTo" onchange="onApplyToChange()" class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm px-3 py-2 border">
                   <option value="all">All products</option>
                   <option value="types">Product types</option>
                   <option value="tags">Tags</option>
                   <option value="products">Specific products</option>
                 </select>
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Match values (comma separated)</label>
-                <input id="chartMatch" placeholder="Shirt, T-Shirt" class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm px-3 py-2 border">
+              <div id="matchBox" class="hidden">
+                <label id="matchLabel" class="block text-sm font-medium text-gray-700 mb-1">Match values</label>
+                <div class="w-full rounded-md border border-gray-300 shadow-sm focus-within:border-green-500 focus-within:ring-green-500 sm:text-sm px-2 py-1 bg-white flex flex-wrap gap-2" onclick="document.getElementById('matchInput').focus()">
+                  <span id="matchChips" class="contents"></span>
+                  <input id="matchInput" type="text" class="outline-none flex-1 min-w-[80px] py-1" placeholder="Type and press Enter" onkeydown="matchInputKey(event)">
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Press Enter or comma to add. Click chip to remove.</p>
               </div>
             </div>
+
             <div class="flex items-center gap-3">
               <button type="submit" class="inline-flex justify-center rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">Save Chart</button>
               <button type="button" onclick="document.getElementById('chartForm').classList.add('hidden')" class="text-sm text-gray-600 hover:text-gray-900">Cancel</button>
@@ -125,6 +143,9 @@
     const params = new URLSearchParams(window.location.search);
     const qs = window.location.search;
 
+    let chartRows = [];
+    let matchValues = [];
+
     function showTab(id) {
       document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
       document.getElementById('panel-' + id).classList.remove('hidden');
@@ -156,12 +177,113 @@
       return res.json();
     }
 
-    function resetChartForm() {
+    function getHeaders() {
+      const raw = document.getElementById('chartHeaders').value || '';
+      return raw.split(',').map(s => s.trim()).filter(Boolean);
+    }
+
+    function newChart() {
       document.getElementById('chartForm').classList.remove('hidden');
       document.getElementById('chartForm').reset();
       document.getElementById('chartId').value = '';
       document.getElementById('chartUnit').value = 'cm';
       document.getElementById('chartApplyTo').value = 'all';
+      document.getElementById('chartHeaders').value = 'Chest, Waist, Hips';
+      chartRows = [{ size: '', values: ['', '', ''] }];
+      matchValues = [];
+      renderRows();
+      renderChips();
+      onApplyToChange();
+    }
+
+    function onApplyToChange() {
+      const applyTo = document.getElementById('chartApplyTo').value;
+      const box = document.getElementById('matchBox');
+      const label = document.getElementById('matchLabel');
+      if (applyTo === 'all') {
+        box.classList.add('hidden');
+      } else {
+        box.classList.remove('hidden');
+        label.textContent = applyTo === 'types' ? 'Match product types' : applyTo === 'tags' ? 'Match tags' : 'Match product handles';
+      }
+    }
+
+    function renderRows() {
+      const headers = getHeaders();
+      const thead = document.getElementById('rowsHead');
+      thead.innerHTML = '<tr><th class="px-3 py-2 text-left font-medium text-gray-700">Size</th>' + headers.map(h => `<th class="px-3 py-2 text-left font-medium text-gray-700">${escapeHtml(h)}</th>`).join('') + '<th></th></tr>';
+
+      // ensure each row has correct number of values
+      chartRows.forEach(row => {
+        while (row.values.length < headers.length) row.values.push('');
+        row.values = row.values.slice(0, headers.length);
+      });
+
+      const tbody = document.getElementById('rowsBody');
+      if (!chartRows.length) {
+        tbody.innerHTML = '<tr><td class="px-3 py-2 text-gray-500 italic" colspan="' + (headers.length + 2) + '">No rows. Click Add size row.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = chartRows.map((row, i) => `
+        <tr>
+          <td class="px-3 py-2"><input type="text" value="${escapeHtml(row.size)}" onchange="updateRow(${i}, 'size', this.value)" class="w-full rounded border-gray-300 sm:text-sm px-2 py-1 border" placeholder="S"></td>
+          ${headers.map((h, j) => `<td class="px-3 py-2"><input type="text" value="${escapeHtml(row.values[j] || '')}" onchange="updateRow(${i}, ${j}, this.value)" class="w-full rounded border-gray-300 sm:text-sm px-2 py-1 border" placeholder="-"></td>`).join('')}
+          <td class="px-3 py-2 text-right"><button type="button" onclick="removeRow(${i})" class="text-red-600 hover:text-red-900 text-sm">Remove</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function updateRow(i, key, value) {
+      if (key === 'size') chartRows[i].size = value;
+      else chartRows[i].values[key] = value;
+    }
+
+    function addRow() {
+      const headers = getHeaders();
+      chartRows.push({ size: '', values: new Array(headers.length).fill('') });
+      renderRows();
+    }
+
+    function removeRow(i) {
+      chartRows.splice(i, 1);
+      renderRows();
+    }
+
+    document.getElementById('chartHeaders').addEventListener('input', renderRows);
+
+    function matchInputKey(e) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const input = e.target;
+        const value = input.value.split(',').map(s => s.trim()).filter(Boolean);
+        value.forEach(v => { if (!matchValues.includes(v)) matchValues.push(v); });
+        input.value = '';
+        renderChips();
+      }
+      if (e.key === 'Backspace' && e.target.value === '' && matchValues.length) {
+        matchValues.pop();
+        renderChips();
+      }
+    }
+
+    function renderChips() {
+      const container = document.getElementById('matchChips');
+      container.innerHTML = matchValues.map(v => `
+        <span class="inline-flex items-center gap-1 bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded">
+          ${escapeHtml(v)}
+          <button type="button" onclick="removeChip('${v.replace(/'/g, "\\'")}')" class="text-green-700 hover:text-green-900">&times;</button>
+        </span>
+      `).join('');
+    }
+
+    window.removeChip = function(v) {
+      matchValues = matchValues.filter(x => x !== v);
+      renderChips();
+    };
+
+    function escapeHtml(text) {
+      if (text == null) return '';
+      return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
 
     function renderCharts(charts) {
@@ -184,21 +306,19 @@
       `).join('');
     }
 
-    function escapeHtml(text) {
-      if (text == null) return '';
-      return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    }
-
     window.editChart = function(c) {
-      resetChartForm();
+      newChart();
       document.getElementById('chartId').value = c.id || '';
       document.getElementById('chartName').value = c.name || '';
       document.getElementById('chartUnit').value = c.unit || 'cm';
       document.getElementById('chartHeaders').value = (c.headers || []).join(', ');
-      document.getElementById('chartRows').value = JSON.stringify(c.rows || [], null, 2);
       document.getElementById('chartApplyTo').value = c.apply_to || 'all';
+      chartRows = JSON.parse(JSON.stringify(c.rows || []));
       const match = c.apply_to === 'types' ? c.types : c.apply_to === 'tags' ? c.tags : c.products;
-      document.getElementById('chartMatch').value = match || '';
+      matchValues = (match || '').split(',').map(s => s.trim()).filter(Boolean);
+      renderRows();
+      renderChips();
+      onApplyToChange();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -220,12 +340,12 @@
           id,
           name: document.getElementById('chartName').value,
           unit: document.getElementById('chartUnit').value,
-          headers: document.getElementById('chartHeaders').value.split(',').map(s => s.trim()).filter(Boolean),
-          rows: JSON.parse(document.getElementById('chartRows').value || '[]'),
+          headers: getHeaders(),
+          rows: chartRows.map(r => ({ size: r.size, values: r.values })),
           apply_to: applyTo,
-          types: applyTo === 'types' ? document.getElementById('chartMatch').value : '',
-          tags: applyTo === 'tags' ? document.getElementById('chartMatch').value : '',
-          products: applyTo === 'products' ? document.getElementById('chartMatch').value : ''
+          types: applyTo === 'types' ? matchValues.join(',') : '',
+          tags: applyTo === 'tags' ? matchValues.join(',') : '',
+          products: applyTo === 'products' ? matchValues.join(',') : ''
         };
         await api(id ? '/api/size-charts/' + id : '/api/size-charts', {
           method: id ? 'PUT' : 'POST',

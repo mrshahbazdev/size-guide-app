@@ -53,11 +53,12 @@ async function ensureChartForShop(shop) {
 }
 
 function renderSizeChart(chart) {
-  if (!chart) return '<p>No size chart is available for this product.</p>';
+  if (!chart) return '{% layout none %}<p>No size chart is available for this product.</p>';
   const headers = ['Size'].concat(chart.headers || []);
   const thead = headers.map(h => `<th>${h}</th>`).join('');
   const tbody = (chart.rows || []).map(row => `<tr><td>${row.size}</td>${(row.values || []).map(v => `<td>${v}</td>`).join('')}</tr>`).join('');
   return `
+{% layout none %}
 <div class="size-guide" data-size-guide>
   <h3 class="size-guide__title">Size Guide</h3>
   <p class="size-guide__unit">Unit: ${chart.unit}</p>
@@ -77,7 +78,7 @@ function getProductFromQuery(q) {
 }
 
 function renderFitFinder(finder) {
-  if (!finder) return '<p>Fit finder is not configured.</p>';
+  if (!finder) return '{% layout none %}<p>Fit finder is not configured.</p>';
   const questions = (finder.questions || []).map((q, i) => `
     <div class="fit-finder__question" data-question-index="${i}">
       <p class="fit-finder__question-text">${q.text}</p>
@@ -87,6 +88,7 @@ function renderFitFinder(finder) {
     </div>
   `).join('');
   return `
+{% layout none %}
 <div class="fit-finder" data-fit-finder data-results='${JSON.stringify(finder.results || [])}'>
   <h3 class="fit-finder__title">Find your fit</h3>
   <form class="fit-finder__form" data-fit-finder-form>

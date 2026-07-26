@@ -7,7 +7,10 @@ const apiSecret = process.env.SHOPIFY_API_SECRET || '';
 
 function proxyAuth(req, res, next) {
   if (process.env.NODE_ENV === 'development' && !req.query.signature) return next();
-  if (!verifyAppProxy(req.query, apiSecret)) return res.status(401).json({ error: 'Invalid signature' });
+  if (!verifyAppProxy(req.query, apiSecret)) {
+    console.error('[PROXY AUTH FAIL]', req.path, 'query keys:', Object.keys(req.query), 'signature:', req.query.signature ? 'present' : 'missing');
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
   next();
 }
 
@@ -197,10 +200,12 @@ function renderSizeChart(chart, ctx) {
           + (ctx.price ? '&price=' + encodeURIComponent(ctx.price) : '')
           + '&available=' + encodeURIComponent(ctx.available ? 'true' : 'false');
         var res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product_handle: ctx.product_handle, measurements: measurements, unit: ctx.unit }) });
-        var data = await res.json();
+        var text = await res.text();
+        var data;
+        try { data = JSON.parse(text); } catch (parseErr) { throw new Error(text.substring(0, 200)); }
         if (data.size) { sizeEl.textContent = data.size; } else { sizeEl.innerHTML = '<span class="sg-recommendation__error">' + (data.error || 'No match') + '</span>'; }
         recommendation.classList.add('sg-recommendation--visible');
-      } catch (e) { sizeEl.innerHTML = '<span class="sg-recommendation__error">Error: ' + e.message + '</span>'; recommendation.classList.add('sg-recommendation--visible'); }
+      } catch (e) { sizeEl.innerHTML = '<span class="sg-recommendation__error">Error: ' + (e.message || 'Request failed') + '</span>'; recommendation.classList.add('sg-recommendation--visible'); }
     });
   }
 })();
@@ -420,13 +425,21 @@ router.post('/measurements', proxyAuth, async (req, res, next) => {
     const unit = req.body.unit || 'cm';
     const product = getProductFromQuery(req.query);
     product.handle = req.body.product_handle || product.handle || '';
+    console.error('[MEASUREMENT] shop=' + shop + ' handle=' + product.handle + ' unit=' + unit + ' measurements=' + JSON.stringify(measurements) + ' product=' + JSON.stringify(product));
     await db.saveMeasurementProfile(shop, customerId, measurements, unit);
     const rec = await db.recommendSizeFromMeasurements(shop, product, measurements);
     const size = rec ? rec.size : null;
-    await db.addMeasurementHistory(shop, customerId, measurements, unit, product.handle, size);
-    await db.trackEvent(shop, 'measurement_save', { product_handle: product.handle, size, metadata: { measurements } });
+    try {
+      await db.addMeasurementHistory(shop, customerId, measurements, unit, product.handle, size);
+    } catch (histErr) { console.error('[MEASUREMENT HISTORY ERROR]', histErr.message || histErr); }
+    try {
+      await db.trackEvent(shop, 'measurement_save', { product_handle: product.handle, size, metadata: { measurements } });
+    } catch (trackErr) { console.error('[TRACK EVENT ERROR]', trackErr.message || trackErr); }
     res.json({ size, confidence: rec ? rec.confidence : 0 });
-  } catch (err) { next(err); }
+  } catch (err) {
+    console.error('[MEASUREMENT ERROR]', err.stack || err.message || err);
+    res.status(500).json({ error: 'Server error', message: err.message || 'Unknown' });
+  }
 });
 
 // Track storefront events

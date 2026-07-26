@@ -117,15 +117,30 @@
 
         <div id="panel-fitfinder" class="panel hidden">
           <h2 class="text-lg font-semibold mb-4">Fit Finder</h2>
-          <form id="fitForm" class="space-y-4">
+          <form id="fitForm" class="space-y-6">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Questions (JSON array)</label>
-              <textarea id="fitQuestions" rows="6" placeholder='[{"text":"How do you prefer your fit?","options":["Tight","Regular","Loose"]}]' class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm px-3 py-2 border font-mono"></textarea>
+              <div class="flex items-center justify-between mb-2">
+                <label class="block text-sm font-medium text-gray-700">Questions</label>
+                <button type="button" onclick="addQuestion()" class="text-sm font-medium text-green-700 hover:text-green-900">+ Add question</button>
+              </div>
+              <div id="questionsBuilder" class="space-y-3"></div>
             </div>
+
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Results (JSON array)</label>
-              <textarea id="fitResults" rows="6" placeholder='[{"size":"S","scores":[0,0]},{"size":"M","scores":[1,1]},{"size":"L","scores":[2,2]}]' class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm px-3 py-2 border font-mono"></textarea>
+              <div class="flex items-center justify-between mb-2">
+                <label class="block text-sm font-medium text-gray-700">Recommended sizes</label>
+                <button type="button" onclick="addResult()" class="text-sm font-medium text-green-700 hover:text-green-900">+ Add size</button>
+              </div>
+              <div class="bg-white rounded-md border border-gray-200 overflow-x-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-gray-100" id="resultsHead">
+                    <tr><th class="px-3 py-2 text-left font-medium text-gray-700">Size</th></tr>
+                  </thead>
+                  <tbody id="resultsBody" class="divide-y divide-gray-200"></tbody>
+                </table>
+              </div>
             </div>
+
             <div class="flex items-center gap-3">
               <button type="submit" class="inline-flex justify-center rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">Save Fit Finder</button>
               <span id="fitStatus" class="text-sm text-gray-500"></span>
@@ -149,6 +164,8 @@
     let chartRows = [];
     let matchValues = [];
     let headerValues = [];
+    let ffQuestions = [];
+    let ffResults = [];
 
     function showTab(id) {
       document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
@@ -180,6 +197,17 @@
       }
       return res.json();
     }
+
+    function escapeHtml(text) {
+      if (text == null) return '';
+      return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    function chipString(v) {
+      return v.replace(/'/g, "\\'");
+    }
+
+    // ---------- Size charts ----------
 
     function getHeaders() {
       return headerValues.slice();
@@ -224,7 +252,7 @@
       container.innerHTML = headerValues.map(v => `
         <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
           ${escapeHtml(v)}
-          <button type="button" onclick="removeHeaderChip('${v.replace(/'/g, "\\'")}')" class="text-blue-700 hover:text-blue-900">&times;</button>
+          <button type="button" onclick="removeHeaderChip('${chipString(v)}')" class="text-blue-700 hover:text-blue-900">&times;</button>
         </span>
       `).join('');
       renderRows();
@@ -247,7 +275,6 @@
       const thead = document.getElementById('rowsHead');
       thead.innerHTML = '<tr><th class="px-3 py-2 text-left font-medium text-gray-700">Size</th>' + headers.map(h => `<th class="px-3 py-2 text-left font-medium text-gray-700">${escapeHtml(h)}</th>`).join('') + '<th></th></tr>';
 
-      // ensure each row has correct number of values
       chartRows.forEach(row => {
         while (row.values.length < headers.length) row.values.push('');
         row.values = row.values.slice(0, headers.length);
@@ -283,8 +310,6 @@
       renderRows();
     }
 
-    
-
     function matchInputKey(e) {
       if (e.key === 'Enter' || e.key === ',') {
         e.preventDefault();
@@ -305,7 +330,7 @@
       container.innerHTML = matchValues.map(v => `
         <span class="inline-flex items-center gap-1 bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded">
           ${escapeHtml(v)}
-          <button type="button" onclick="removeChip('${v.replace(/'/g, "\\'")}')" class="text-green-700 hover:text-green-900">&times;</button>
+          <button type="button" onclick="removeChip('${chipString(v)}')" class="text-green-700 hover:text-green-900">&times;</button>
         </span>
       `).join('');
     }
@@ -314,11 +339,6 @@
       matchValues = matchValues.filter(x => x !== v);
       renderChips();
     };
-
-    function escapeHtml(text) {
-      if (text == null) return '';
-      return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    }
 
     function renderCharts(charts) {
       const tbody = document.getElementById('chartTableBody');
@@ -398,15 +418,130 @@
       } catch (e) { toast(e.message || 'Failed to load charts', 'error'); }
     }
 
-    async function loadFitFinder() {
-      try {
-        const { finder } = await api('/api/fit-finder');
-        if (finder) {
-          document.getElementById('fitQuestions').value = JSON.stringify(finder.questions || [], null, 2);
-          document.getElementById('fitResults').value = JSON.stringify(finder.results || [], null, 2);
-          renderFitPreview(finder.questions, finder.results);
-        }
-      } catch (e) { toast(e.message || 'Failed to load fit finder', 'error'); }
+    // ---------- Fit finder ----------
+
+    function renderQuestionsBuilder() {
+      const container = document.getElementById('questionsBuilder');
+      if (!ffQuestions.length) {
+        container.innerHTML = '<p class="text-sm text-gray-500">No questions yet. Click + Add question.</p>';
+        return;
+      }
+      container.innerHTML = ffQuestions.map((q, i) => `
+        <div class="bg-white rounded-md border border-gray-200 p-3">
+          <div class="flex items-center gap-2 mb-2">
+            <input type="text" value="${escapeHtml(q.text)}" onchange="updateQuestionText(${i}, this.value)" class="flex-1 rounded border-gray-300 sm:text-sm px-2 py-1 border" placeholder="Question text">
+            <button type="button" onclick="removeQuestion(${i})" class="text-red-600 hover:text-red-900 text-sm">Remove</button>
+          </div>
+          <div class="w-full rounded-md border border-gray-300 shadow-sm focus-within:border-green-500 focus-within:ring-green-500 sm:text-sm px-2 py-1 bg-white flex flex-wrap gap-2" onclick="document.getElementById('ffOptionInput-${i}').focus()">
+            <span id="ffOptionChips-${i}" class="contents"></span>
+            <input id="ffOptionInput-${i}" type="text" class="outline-none flex-1 min-w-[80px] py-1" placeholder="Add option and press Enter" onkeydown="ffOptionInputKey(event, ${i})">
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Press Enter or comma to add an option. Click chip to remove.</p>
+        </div>
+      `).join('');
+      ffQuestions.forEach((q, i) => renderFfOptionChips(i));
+    }
+
+    function renderFfOptionChips(qIndex) {
+      const container = document.getElementById('ffOptionChips-' + qIndex);
+      if (!container) return;
+      container.innerHTML = ffQuestions[qIndex].options.map(o => `
+        <span class="inline-flex items-center gap-1 bg-purple-100 text-purple-800 text-xs font-medium px-2 py-1 rounded">
+          ${escapeHtml(o)}
+          <button type="button" onclick="removeQuestionOption(${qIndex}, '${chipString(o)}')" class="text-purple-700 hover:text-purple-900">&times;</button>
+        </span>
+      `).join('');
+      syncResultScores();
+      renderResultsBuilder();
+      renderFitPreview(ffQuestions, ffResults);
+    }
+
+    function addQuestion() {
+      ffQuestions.push({ text: '', options: [] });
+      renderQuestionsBuilder();
+      syncResultScores();
+      renderResultsBuilder();
+    }
+
+    function removeQuestion(i) {
+      ffQuestions.splice(i, 1);
+      renderQuestionsBuilder();
+      syncResultScores();
+      renderResultsBuilder();
+    }
+
+    function updateQuestionText(i, val) {
+      ffQuestions[i].text = val;
+      renderResultsBuilder();
+      renderFitPreview(ffQuestions, ffResults);
+    }
+
+    window.removeQuestionOption = function(qIndex, val) {
+      ffQuestions[qIndex].options = ffQuestions[qIndex].options.filter(o => o !== val);
+      renderFfOptionChips(qIndex);
+    };
+
+    function ffOptionInputKey(e, qIndex) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const input = e.target;
+        const values = input.value.split(',').map(s => s.trim()).filter(Boolean);
+        values.forEach(v => { if (!ffQuestions[qIndex].options.includes(v)) ffQuestions[qIndex].options.push(v); });
+        input.value = '';
+        renderFfOptionChips(qIndex);
+      }
+      if (e.key === 'Backspace' && e.target.value === '' && ffQuestions[qIndex].options.length) {
+        ffQuestions[qIndex].options.pop();
+        renderFfOptionChips(qIndex);
+      }
+    }
+
+    function syncResultScores() {
+      const qCount = ffQuestions.length;
+      ffResults.forEach(r => {
+        while (r.scores.length < qCount) r.scores.push(0);
+        r.scores = r.scores.slice(0, qCount);
+      });
+    }
+
+    function renderResultsBuilder() {
+      const thead = document.getElementById('resultsHead');
+      const qCount = ffQuestions.length;
+      thead.innerHTML = '<tr><th class="px-3 py-2 text-left font-medium text-gray-700">Size</th>' + (qCount ? ffQuestions.map((q, i) => `<th class="px-3 py-2 text-left font-medium text-gray-700">Q${i + 1}</th>`).join('') : '') + '<th></th></tr>';
+
+      const tbody = document.getElementById('resultsBody');
+      if (!ffResults.length) {
+        tbody.innerHTML = '<tr><td class="px-3 py-2 text-gray-500 italic" colspan="' + (qCount + 2) + '">No sizes yet. Click + Add size.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = ffResults.map((r, i) => `
+        <tr>
+          <td class="px-3 py-2"><input type="text" value="${escapeHtml(r.size)}" onchange="updateResultSize(${i}, this.value)" class="w-full rounded border-gray-300 sm:text-sm px-2 py-1 border" placeholder="S"></td>
+          ${ffQuestions.map((q, j) => `<td class="px-3 py-2"><input type="number" min="0" value="${escapeHtml(String(r.scores[j] || 0))}" onchange="updateResultScore(${i}, ${j}, this.value)" class="w-20 rounded border-gray-300 sm:text-sm px-2 py-1 border"></td>`).join('')}
+          <td class="px-3 py-2 text-right"><button type="button" onclick="removeResult(${i})" class="text-red-600 hover:text-red-900 text-sm">Remove</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function addResult() {
+      const qCount = ffQuestions.length || 0;
+      ffResults.push({ size: '', scores: new Array(qCount).fill(0) });
+      renderResultsBuilder();
+    }
+
+    function removeResult(i) {
+      ffResults.splice(i, 1);
+      renderResultsBuilder();
+    }
+
+    function updateResultSize(i, val) {
+      ffResults[i].size = val;
+      renderFitPreview(ffQuestions, ffResults);
+    }
+
+    function updateResultScore(i, q, val) {
+      ffResults[i].scores[q] = parseInt(val, 10) || 0;
+      renderFitPreview(ffQuestions, ffResults);
     }
 
     function renderFitPreview(questions, results) {
@@ -414,7 +549,7 @@
       const content = document.getElementById('fitPreviewContent');
       if (!questions || !questions.length) { preview.classList.add('hidden'); return; }
       let html = '<ol class="list-decimal pl-4 space-y-2">' + questions.map(q => `
-        <li>${escapeHtml(q.text)}<div class="flex flex-wrap gap-2 mt-1">${q.options.map(o => `<span class="px-2 py-1 bg-white border rounded text-xs">${escapeHtml(o)}</span>`).join('')}</div></li>
+        <li>${escapeHtml(q.text)}<div class="flex flex-wrap gap-2 mt-1">${(q.options || []).map(o => `<span class="px-2 py-1 bg-white border rounded text-xs">${escapeHtml(o)}</span>`).join('')}</div></li>
       `).join('') + '</ol>';
       html += '<div class="mt-3 font-medium">Recommended sizes: ' + (results || []).map(r => `<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">${escapeHtml(r.size)}</span>`).join(' ') + '</div>';
       content.innerHTML = html;
@@ -424,15 +559,40 @@
     document.getElementById('fitForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
-        const questions = JSON.parse(document.getElementById('fitQuestions').value || '[]');
-        const results = JSON.parse(document.getElementById('fitResults').value || '[]');
-        await api('/api/fit-finder', { method: 'POST', body: JSON.stringify({ questions, results }) });
+        const body = {
+          questions: ffQuestions.map(q => ({ text: q.text, options: q.options.slice() })),
+          results: ffResults.map(r => ({ size: r.size, scores: r.scores.slice() }))
+        };
+        await api('/api/fit-finder', { method: 'POST', body: JSON.stringify(body) });
         document.getElementById('fitStatus').textContent = 'Saved';
-        renderFitPreview(questions, results);
         toast('Fit finder saved');
         setTimeout(() => document.getElementById('fitStatus').textContent = '', 2000);
       } catch (err) { toast(err.message || 'Save failed', 'error'); }
     });
+
+    async function loadFitFinder() {
+      try {
+        const { finder } = await api('/api/fit-finder');
+        if (finder) {
+          ffQuestions = JSON.parse(JSON.stringify(finder.questions || []));
+          ffResults = JSON.parse(JSON.stringify(finder.results || []));
+        } else {
+          ffQuestions = [
+            { text: 'How do you prefer your fit?', options: ['Tight', 'Regular', 'Loose'] },
+            { text: 'What is your chest measurement?', options: ['< 90 cm', '90-100 cm', '> 100 cm'] }
+          ];
+          ffResults = [
+            { size: 'S', scores: [0, 0] },
+            { size: 'M', scores: [1, 1] },
+            { size: 'L', scores: [2, 2] }
+          ];
+        }
+        renderQuestionsBuilder();
+        syncResultScores();
+        renderResultsBuilder();
+        renderFitPreview(ffQuestions, ffResults);
+      } catch (e) { toast(e.message || 'Failed to load fit finder', 'error'); }
+    }
 
     loadCharts();
     loadFitFinder();

@@ -17,6 +17,8 @@
       data-product-type="{{ product.type | escape }}"
       data-product-tags="{{ product.tags | join: ',' | escape }}"
       data-product-handle="{{ product.handle | escape }}"
+      data-collection-handles="{% for collection in product.collections %}{{ collection.handle }}{% unless forloop.last %},{% endunless %}{% endfor %}"
+      data-logged-in-customer-id="{{ customer.id | default: '' }}"
       data-app-proxy-url="{{ shop.url }}/apps/size-guide">
       <p class="size-guide-inline__loading">Loading size guide...</p>
     </div>
@@ -26,6 +28,8 @@
       data-product-type="{{ product.type | escape }}"
       data-product-tags="{{ product.tags | join: ',' | escape }}"
       data-product-handle="{{ product.handle | escape }}"
+      data-collection-handles="{% for collection in product.collections %}{{ collection.handle }}{% unless forloop.last %},{% endunless %}{% endfor %}"
+      data-logged-in-customer-id="{{ customer.id | default: '' }}"
       data-app-proxy-url="{{ shop.url }}/apps/size-guide"
       style="--btn-color: {{ button_color }}; --btn-bg: {{ button_color }}; --btn-text: {{ text_color }}; --btn-radius: {{ border_radius }}px; --btn-padding: {{ button_padding }}px;"
       aria-label="{{ link_text }}">

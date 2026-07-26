@@ -1,0 +1,136 @@
+{%- liquid
+  assign link_text = block.settings.link_text | default: 'Size guide'
+  assign position = block.settings.position | default: 'right'
+  assign tab_color = block.settings.tab_color | default: '#008060'
+  assign text_color = block.settings.text_color | default: '#ffffff'
+-%}
+
+<div class="sg-sticky" data-position="{{ position }}">
+  <button type="button" class="sg-sticky__tab" data-size-guide-sticky-open
+    data-shop="{{ shop.permanent_domain }}"
+    data-product-type="{{ product.type | escape }}"
+    data-product-tags="{{ product.tags | join: ',' | escape }}"
+    data-product-handle="{{ product.handle | escape }}"
+    data-collection-handles="{% for collection in product.collections %}{{ collection.handle }}{% unless forloop.last %},{% endunless %}{% endfor %}"
+    data-logged-in-customer-id="{{ customer.id | default: '' }}"
+    data-app-proxy-url="{{ shop.url }}/apps/size-guide"
+    style="--tab-color: {{ tab_color }}; --tab-text: {{ text_color }};"
+    aria-label="{{ link_text }}">
+    {{ link_text }}
+  </button>
+
+  <div class="sg-sticky__drawer hidden" data-size-guide-sticky-drawer role="dialog" aria-label="Size guide">
+    <div class="sg-sticky__overlay" data-size-guide-sticky-close></div>
+    <div class="sg-sticky__panel">
+      <div class="sg-sticky__header">
+        <h3 class="sg-sticky__title">Size Guide</h3>
+        <button type="button" class="sg-sticky__close" data-size-guide-sticky-close aria-label="{{ 'general.accessibility.close' | t }}">&times;</button>
+      </div>
+      <div data-size-guide-content class="sg-sticky__body">
+        <p>{{ 'size_guide.loading' | t }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.sg-sticky { position: fixed; z-index: 9998; }
+.sg-sticky[data-position="right"] { right: 0; top: 50%; transform: translateY(-50%); }
+.sg-sticky[data-position="left"] { left: 0; top: 50%; transform: translateY(-50%); }
+.sg-sticky[data-position="right"] .sg-sticky__tab { transform-origin: right center; transform: rotate(-90deg) translate(50%, -100%); transform: rotate(-90deg) translate(50%, 0); margin-right: -1px; }
+.sg-sticky[data-position="left"] .sg-sticky__tab { transform-origin: left center; transform: rotate(90deg) translate(-50%, 0); margin-left: -1px; }
+.sg-sticky[data-position="bottom"] { bottom: 0; left: 50%; transform: translateX(-50%); }
+
+.sg-sticky__tab {
+  --tab-color: #008060;
+  --tab-text: #ffffff;
+  background-color: var(--tab-color);
+  color: var(--tab-text);
+  border: none;
+  padding: 12px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  white-space: nowrap;
+}
+.sg-sticky__tab:hover { opacity: 0.92; }
+
+.sg-sticky__drawer { position: fixed; inset: 0; z-index: 9999; }
+.sg-sticky__drawer.hidden { display: none; }
+.sg-sticky__overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.45); backdrop-filter: blur(2px); }
+.sg-sticky__panel { position: absolute; top: 0; right: 0; height: 100%; width: 100%; max-width: 480px; background: #fff; box-shadow: -8px 0 40px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+.sg-sticky[data-position="left"] .sg-sticky__panel { right: auto; left: 0; box-shadow: 8px 0 40px rgba(0,0,0,0.2); }
+.sg-sticky[data-position="bottom"] .sg-sticky__panel { right: auto; left: 0; bottom: 0; top: auto; height: 85vh; max-width: 100%; border-radius: 16px 16px 0 0; }
+.sg-sticky__header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid #e5e7eb; }
+.sg-sticky__title { margin: 0; font-size: 18px; font-weight: 700; }
+.sg-sticky__close { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; }
+.sg-sticky__body { flex: 1; overflow: auto; padding: 20px; }
+@media (max-width: 640px) {
+  .sg-sticky__panel { max-width: 100%; }
+}
+</style>
+
+<script>
+(function(){
+  var tab = document.querySelector('[data-size-guide-sticky-open]');
+  var drawer = document.querySelector('[data-size-guide-sticky-drawer]');
+  if (!tab || !drawer) return;
+  var content = drawer.querySelector('[data-size-guide-content]');
+  function buildUrl(){
+    var proxy = tab.dataset.appProxyUrl || '/apps/size-guide';
+    return proxy + '?shop=' + encodeURIComponent(tab.dataset.shop) + '&product_type=' + encodeURIComponent(tab.dataset.productType || '') + '&tags=' + encodeURIComponent(tab.dataset.productTags || '') + '&handle=' + encodeURIComponent(tab.dataset.productHandle || '') + '&collection_handles=' + encodeURIComponent(tab.dataset.collectionHandles || '') + '&logged_in_customer_id=' + encodeURIComponent(tab.dataset.loggedInCustomerId || '');
+  }
+  tab.addEventListener('click', async function(){
+    drawer.classList.remove('hidden');
+    try {
+      var res = await fetch(buildUrl());
+      content.innerHTML = await res.text();
+    } catch (e) { content.innerHTML = '<p>Could not load size guide.</p>'; }
+  });
+  drawer.addEventListener('click', function(e){
+    if (e.target === drawer || e.target.hasAttribute('data-size-guide-sticky-close') || e.target.closest('[data-size-guide-sticky-close]')) {
+      drawer.classList.add('hidden');
+    }
+  });
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Size guide sticky tab",
+  "target": "body",
+  "settings": [
+    {
+      "type": "text",
+      "id": "link_text",
+      "label": "Tab text",
+      "default": "Size guide"
+    },
+    {
+      "type": "select",
+      "id": "position",
+      "label": "Position",
+      "options": [
+        { "value": "right", "label": "Right side" },
+        { "value": "left", "label": "Left side" },
+        { "value": "bottom", "label": "Bottom" }
+      ],
+      "default": "right"
+    },
+    {
+      "type": "color",
+      "id": "tab_color",
+      "label": "Tab color",
+      "default": "#008060"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Tab text color",
+      "default": "#ffffff"
+    }
+  ]
+}
+{% endschema %}

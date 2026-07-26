@@ -4,8 +4,10 @@
     const type = encodeURIComponent(el.dataset.productType || '');
     const tags = encodeURIComponent(el.dataset.productTags || '');
     const handle = encodeURIComponent(el.dataset.productHandle || '');
+    const collections = encodeURIComponent(el.dataset.collectionHandles || '');
+    const customerId = encodeURIComponent(el.dataset.loggedInCustomerId || '');
     const proxyUrl = el.dataset.appProxyUrl || '/apps/size-guide';
-    return `${proxyUrl}?shop=${encodeURIComponent(shop)}&product_type=${type}&tags=${tags}&handle=${handle}`;
+    return `${proxyUrl}?shop=${encodeURIComponent(shop)}&product_type=${type}&tags=${tags}&handle=${handle}&collection_handles=${collections}&logged_in_customer_id=${customerId}`;
   }
 
   async function fetchSizeGuide(el, target) {

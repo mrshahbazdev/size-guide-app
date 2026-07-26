@@ -44,7 +44,8 @@ const defaultChart = {
   apply_to: 'all',
   types: '',
   tags: '',
-  products: ''
+  products: '',
+  collections: ''
 };
 
 async function ensureChartForShop(shop) {
@@ -54,13 +55,34 @@ async function ensureChartForShop(shop) {
   return db.saveChart(chart);
 }
 
-function renderSizeChart(chart) {
+function normalizeKey(str) {
+  return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function escapeAttr(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+function renderSizeChart(chart, ctx) {
   if (!chart) return '{% layout none %}<p class="sg-empty">No size chart is available for this product.</p>';
   const headers = ['Size'].concat(chart.headers || []);
   const thead = headers.map(h => `<th>${h}</th>`).join('');
   const tbody = (chart.rows || []).map(row => `<tr><td class="sg-col-size">${row.size}</td>${(row.values || []).map(v => `<td class="size-cell">${v}</td>`).join('')}</tr>`).join('');
   const imageHtml = chart.image_url ? `<div class="sg-image-wrap"><img src="${chart.image_url}" alt="Size chart" class="sg-image"></div>` : '';
   const defaultUnit = (chart.unit || 'cm').toLowerCase() === 'inch' ? 'inch' : 'cm';
+  const measurementInputs = (chart.headers || []).map((h, i) => `
+    <div class="sg-measure">
+      <label>${h}</label>
+      <input type="number" step="0.1" data-measure-key="${normalizeKey(h)}" placeholder="0">
+    </div>
+  `).join('');
+  const measurementCtx = JSON.stringify({
+    shop: ctx.shop,
+    product_handle: ctx.product_handle || '',
+    customer_id: ctx.logged_in_customer_id || '',
+    signature: ctx.signature || '',
+    headers: (chart.headers || []).map(normalizeKey),
+  });
   return `
 {% layout none %}
 <style>
@@ -82,6 +104,18 @@ function renderSizeChart(chart) {
 .sg-table tbody tr:hover { background:#f9fafb; }
 .sg-col-size { font-weight:700; color:#111827; background:#f9fafb; }
 .sg-empty { color:#6b7280; font-size:14px; padding:12px; }
+.sg-measurements { margin-top:22px; padding-top:20px; border-top:1px solid #e5e7eb; }
+.sg-measurements__title { font-size:15px; font-weight:700; margin:0 0 10px; }
+.sg-measurements__row { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px; }
+.sg-measure { flex:1; min-width:100px; }
+.sg-measure label { display:block; font-size:12px; font-weight:600; color:#6b7280; margin-bottom:4px; }
+.sg-measure input { width:100%; border:1px solid #d1d5db; border-radius:8px; padding:8px 10px; font-size:14px; }
+.sg-measure button { background:#008060; color:#fff; border:none; border-radius:8px; padding:10px 16px; font-weight:600; cursor:pointer; }
+.sg-recommendation { margin-top:12px; padding:12px 14px; border-radius:8px; background:#f0fdf9; border:1px solid #a7f3d0; display:none; }
+.sg-recommendation--visible { display:block; }
+.sg-recommendation__label { font-size:12px; font-weight:700; color:#047857; text-transform:uppercase; letter-spacing:.05em; }
+.sg-recommendation__size { font-size:26px; font-weight:800; color:#008060; }
+.sg-recommendation__error { color:#b91c1c; font-size:13px; }
 </style>
 <div class="sg-card" data-size-guide>
   <div class="sg-header">
@@ -98,6 +132,21 @@ function renderSizeChart(chart) {
       <tbody>${tbody}</tbody>
     </table>
   </div>
+
+  <div class="sg-measurements" data-measurements data-ctx="${escapeAttr(measurementCtx)}">
+    <h4 class="sg-measurements__title">Get your recommended size</h4>
+    <p style="font-size:13px;color:#6b7280;margin:0 0 10px">Enter your measurements and we'll recommend the best size.</p>
+    <div class="sg-measurements__row">
+      ${measurementInputs}
+      <div class="sg-measure" style="display:flex;align-items:flex-end">
+        <button type="button" data-recommend-btn>Recommend size</button>
+      </div>
+    </div>
+    <div class="sg-recommendation" data-recommendation>
+      <div class="sg-recommendation__label">Recommended size</div>
+      <div class="sg-recommendation__size" data-recommend-size>—</div>
+    </div>
+  </div>
 </div>
 <script>
 (function(){
@@ -110,11 +159,35 @@ function renderSizeChart(chart) {
     buttons.forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.unit === unit); });
     var factor = unit === 'inch' ? 0.393700787 : 1;
     cells.forEach(function(cell, i){
-      cell.textContent = originals[i].replace(/[0-9]+(?:\.[0-9]+)?/g, function(n){ return (Math.round(parseFloat(n) * factor * 10) / 10).toString(); });
+      cell.textContent = originals[i].replace(/[0-9]+(?:\\.[0-9]+)?/g, function(n){ return (Math.round(parseFloat(n) * factor * 10) / 10).toString(); });
     });
+    var ctx = JSON.parse(document.querySelector('[data-measurements]').dataset.ctx || '{}');
+    ctx.unit = unit;
+    document.querySelector('[data-measurements]').dataset.ctx = JSON.stringify(ctx);
   }
   buttons.forEach(function(btn){ btn.addEventListener('click', function(){ setUnit(btn.dataset.unit); }); });
   setUnit('${defaultUnit}');
+
+  var recommendBtn = widget.querySelector('[data-recommend-btn]');
+  var recommendation = widget.querySelector('[data-recommendation]');
+  var sizeEl = widget.querySelector('[data-recommend-size]');
+  if (recommendBtn) {
+    recommendBtn.addEventListener('click', async function(){
+      var ctx = JSON.parse(document.querySelector('[data-measurements]').dataset.ctx || '{}');
+      var measurements = {};
+      document.querySelectorAll('[data-measure-key]').forEach(function(input){
+        if (input.value) measurements[input.dataset.measureKey] = input.value;
+      });
+      if (!Object.keys(measurements).length) { sizeEl.innerHTML = '<span class="sg-recommendation__error">Enter at least one measurement.</span>'; recommendation.classList.add('sg-recommendation--visible'); return; }
+      try {
+        var url = '/apps/size-guide/measurements?shop=' + encodeURIComponent(ctx.shop) + (ctx.signature ? '&signature=' + encodeURIComponent(ctx.signature) : '') + (ctx.customer_id ? '&logged_in_customer_id=' + encodeURIComponent(ctx.customer_id) : '');
+        var res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product_handle: ctx.product_handle, measurements: measurements, unit: ctx.unit }) });
+        var data = await res.json();
+        if (data.size) { sizeEl.textContent = data.size; } else { sizeEl.innerHTML = '<span class="sg-recommendation__error">' + (data.error || 'No match') + '</span>'; }
+        recommendation.classList.add('sg-recommendation--visible');
+      } catch (e) { sizeEl.innerHTML = '<span class="sg-recommendation__error">Error: ' + e.message + '</span>'; recommendation.classList.add('sg-recommendation--visible'); }
+    });
+  }
 })();
 </script>`;
 }
@@ -123,11 +196,12 @@ function getProductFromQuery(q) {
   return {
     product_type: q.product_type || '',
     tags: (q.tags || '').split(',').filter(Boolean),
-    handle: q.handle || ''
+    handle: q.handle || '',
+    collection_handles: (q.collection_handles || '').split(',').filter(Boolean),
   };
 }
 
-function renderFitFinder(finder) {
+function renderFitFinder(finder, ctx) {
   if (!finder) return '{% layout none %}<p class="ff-empty">Fit finder is not configured.</p>';
   const total = (finder.questions || []).length;
   const slides = (finder.questions || []).map((q, i) => {
@@ -181,7 +255,7 @@ function renderFitFinder(finder) {
 .ff-result__note { margin-top: 12px; font-size: 14px; color: #065f46; }
 .ff-empty { color: #6b7280; font-size: 14px; padding: 12px; }
 </style>
-<div class="ff-card" data-fit-finder data-results='${JSON.stringify(finder.results || [])}' data-total="${total}">
+<div class="ff-card" data-fit-finder data-results='${JSON.stringify(finder.results || [])}' data-total="${total}" data-ctx="${escapeAttr(JSON.stringify(ctx))}">
   <div class="ff-header">
     <h3 class="ff-title">Find your perfect fit</h3>
     <p class="ff-subtitle">Answer ${total} quick question${total === 1 ? '' : 's'} and we'll recommend the best size.</p>
@@ -205,6 +279,7 @@ function renderFitFinder(finder) {
 (function(){
   var card = document.querySelector('[data-fit-finder]');
   if (!card) return;
+  var ctx = JSON.parse(card.dataset.ctx || '{}');
   var form = card.querySelector('[data-fit-finder-form]');
   var slides = Array.prototype.slice.call(form.querySelectorAll('[data-question-index]'));
   var prevBtn = form.querySelector('[data-prev]');
@@ -218,6 +293,13 @@ function renderFitFinder(finder) {
   var current = 0;
   var answers = {};
 
+  function track(event, data){
+    try {
+      var url = '/apps/size-guide/track?shop=' + encodeURIComponent(ctx.shop) + (ctx.signature ? '&signature=' + encodeURIComponent(ctx.signature) : '');
+      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: event, data: data || {} }) });
+    } catch (e) {}
+  }
+
   function show(i){
     slides.forEach(function(s, idx){ s.style.display = idx === i ? 'block' : 'none'; });
     current = i;
@@ -226,9 +308,7 @@ function renderFitFinder(finder) {
     updateNext();
     progressBar.style.width = ((i + (answers[current] != null ? 1 : 0)) / total) * 100 + '%';
   }
-  function updateNext(){
-    nextBtn.disabled = answers[current] == null;
-  }
+  function updateNext(){ nextBtn.disabled = answers[current] == null; }
   function compute(){
     var scores = [];
     for (var k = 0; k < total; k++) scores.push(parseInt(answers[k], 10) || 0);
@@ -240,6 +320,7 @@ function renderFitFinder(finder) {
     sizeEl.textContent = best || '—';
     result.classList.add('ff-result--visible');
     form.style.display = 'none';
+    track('fit_finder_submit', { product_handle: ctx.product_handle, size: best });
   }
   form.addEventListener('change', function(e){
     if (e.target.type === 'radio') {
@@ -269,6 +350,15 @@ function renderFitFinder(finder) {
 </script>`;
 }
 
+function buildCtx(req) {
+  return {
+    shop: req.query.shop,
+    product_handle: req.query.handle || '',
+    logged_in_customer_id: req.query.logged_in_customer_id || '',
+    signature: req.query.signature || '',
+  };
+}
+
 // Default size guide
 router.get('/', proxyAuth, async (req, res, next) => {
   try {
@@ -277,8 +367,9 @@ router.get('/', proxyAuth, async (req, res, next) => {
     const product = getProductFromQuery(req.query);
     let chart = await db.findChartForProduct(shop, product);
     if (!chart) chart = await ensureChartForShop(shop);
+    await db.trackEvent(shop, 'size_guide_open', { product_handle: product.handle });
     res.set('Content-Type', 'application/liquid');
-    res.send(renderSizeChart(chart));
+    res.send(renderSizeChart(chart, buildCtx(req)));
   } catch (err) { next(err); }
 });
 
@@ -289,8 +380,38 @@ router.get('/fit-finder', proxyAuth, async (req, res, next) => {
     if (!shop) return res.status(400).send('Shop required');
     const finder = await ensureFitFinderForShop(shop);
     res.set('Content-Type', 'application/liquid');
-    res.send(renderFitFinder(finder));
+    res.send(renderFitFinder(finder, buildCtx(req)));
+  } catch (err) { next(err); }
+});
+
+// Save measurements and recommend size
+router.post('/measurements', proxyAuth, async (req, res, next) => {
+  try {
+    const shop = req.query.shop;
+    if (!shop) return res.status(400).json({ error: 'Shop required' });
+    const customerId = req.query.logged_in_customer_id || req.body.customer_id || 'guest';
+    const measurements = req.body.measurements || {};
+    const unit = req.body.unit || 'cm';
+    const productHandle = req.body.product_handle || '';
+    const product = { handle: productHandle, tags: [], product_type: '', collection_handles: [] };
+    await db.saveMeasurementProfile(shop, customerId, measurements, unit);
+    const rec = await db.recommendSizeFromMeasurements(shop, product, measurements);
+    await db.trackEvent(shop, 'measurement_save', { product_handle: productHandle, size: rec ? rec.size : '', metadata: { measurements } });
+    res.json({ size: rec ? rec.size : null });
+  } catch (err) { next(err); }
+});
+
+// Track storefront events
+router.post('/track', proxyAuth, async (req, res, next) => {
+  try {
+    const shop = req.query.shop;
+    if (!shop) return res.status(400).json({ error: 'Shop required' });
+    const { event, data } = req.body;
+    await db.trackEvent(shop, event, data || {});
+    res.json({ success: true });
   } catch (err) { next(err); }
 });
 
 module.exports = router;
+module.exports.renderSizeChart = renderSizeChart;
+module.exports.renderFitFinder = renderFitFinder;

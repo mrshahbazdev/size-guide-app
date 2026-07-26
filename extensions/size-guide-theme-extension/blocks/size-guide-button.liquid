@@ -1,12 +1,19 @@
-<button type="button" class="size-guide-link" data-size-guide-open
-  data-shop="{{ shop.permanent_domain }}"
-  data-product-type="{{ product.type | escape }}"
-  data-product-tags="{{ product.tags | join: ',' | escape }}"
-  data-product-handle="{{ product.handle | escape }}"
-  data-app-proxy-url="{{ shop.url }}/apps/size-guide"
-  aria-label="{{ block.settings.link_text | default: 'Size guide' }}">
-  {{ block.settings.link_text | default: 'Size guide' }}
-</button>
+{%- liquid
+  assign link_text = block.settings.link_text | default: 'Size guide'
+  assign style_class = 'size-guide-button--' | append: block.settings.button_style
+-%}
+
+<div class="size-guide-button-wrapper size-guide-button-wrapper--{{ block.settings.alignment }}">
+  <button type="button" class="size-guide-button {{ style_class }}" data-size-guide-open
+    data-shop="{{ shop.permanent_domain }}"
+    data-product-type="{{ product.type | escape }}"
+    data-product-tags="{{ product.tags | join: ',' | escape }}"
+    data-product-handle="{{ product.handle | escape }}"
+    data-app-proxy-url="{{ shop.url }}/apps/size-guide"
+    aria-label="{{ link_text }}">
+    {{ link_text }}
+  </button>
+</div>
 
 <div class="size-guide-modal hidden" data-size-guide-modal role="dialog" aria-label="Size guide">
   <div class="size-guide-modal__overlay" data-size-guide-close></div>
@@ -19,15 +26,45 @@
 </div>
 
 <style>
-.size-guide-link {
-  background: none;
-  border: none;
-  padding: 0;
-  text-decoration: underline;
-  color: inherit;
-  cursor: pointer;
+.size-guide-button-wrapper { display: flex; margin: 12px 0; }
+.size-guide-button-wrapper--left { justify-content: flex-start; }
+.size-guide-button-wrapper--center { justify-content: center; }
+.size-guide-button-wrapper--right { justify-content: flex-end; }
+
+.size-guide-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 18px;
+  transition: opacity 0.2s ease, transform 0.1s ease;
 }
+.size-guide-button:hover { opacity: 0.9; }
+.size-guide-button:active { transform: translateY(1px); }
+
+.size-guide-button--primary {
+  background-color: #008060;
+  color: #ffffff;
+}
+.size-guide-button--secondary {
+  background-color: transparent;
+  color: #008060;
+  box-shadow: inset 0 0 0 2px #008060;
+}
+.size-guide-button--link {
+  background-color: transparent;
+  color: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+
 .size-guide-modal {
   position: fixed;
   inset: 0;
@@ -46,11 +83,11 @@
   position: relative;
   background: #fff;
   border-radius: 8px;
-  max-width: 640px;
+  max-width: 720px;
   width: calc(100% - 32px);
-  max-height: 80vh;
+  max-height: 85vh;
   overflow: auto;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25);
 }
 .size-guide-modal__close {
   position: absolute;
@@ -63,13 +100,22 @@
   line-height: 1;
   z-index: 1;
 }
-.size-guide-modal__body {
-  padding: 32px 24px 24px;
+.size-guide-modal__body { padding: 32px 24px 24px; }
+.size-guide__title { margin-top: 0; font-size: 20px; }
+.size-guide__unit { color: #6b7280; margin-bottom: 12px; }
+.size-guide__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 14px;
 }
-.size-guide__title { margin-top: 0; }
-.size-guide__table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-.size-guide__table th, .size-guide__table td { border: 1px solid #e5e7eb; padding: 8px; text-align: center; }
-.size-guide__table th { background: #f9fafb; }
+.size-guide__table th, .size-guide__table td {
+  border: 1px solid #e5e7eb;
+  padding: 10px 8px;
+  text-align: center;
+}
+.size-guide__table th { background: #f9fafb; font-weight: 600; }
+.size-guide__table tr:nth-child(even) { background: #fafafa; }
 </style>
 
 <script src="{{ 'size-guide.js' | asset_url }}" defer></script>
@@ -79,7 +125,34 @@
   "name": "Size guide button",
   "target": "section",
   "settings": [
-    {"type": "text", "id": "link_text", "label": "Link text", "default": "Size guide"}
+    {
+      "type": "text",
+      "id": "link_text",
+      "label": "Link text",
+      "default": "Size guide"
+    },
+    {
+      "type": "select",
+      "id": "button_style",
+      "label": "Button style",
+      "options": [
+        { "value": "primary", "label": "Primary" },
+        { "value": "secondary", "label": "Secondary outline" },
+        { "value": "link", "label": "Text link" }
+      ],
+      "default": "primary"
+    },
+    {
+      "type": "select",
+      "id": "alignment",
+      "label": "Alignment",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "left"
+    }
   ]
 }
 {% endschema %}

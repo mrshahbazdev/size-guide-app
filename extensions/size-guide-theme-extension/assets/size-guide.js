@@ -13,11 +13,22 @@
     return `${proxyUrl}?shop=${encodeURIComponent(shop)}&product_type=${type}&tags=${tags}&handle=${handle}&collection_handles=${collections}&logged_in_customer_id=${customerId}&customer_tags=${customerTags}&price=${price}&available=${available}`;
   }
 
+  function runScripts(container) {
+    container.querySelectorAll('script').forEach(script => {
+      const newScript = document.createElement('script');
+      if (script.src) newScript.src = script.src;
+      else newScript.textContent = script.textContent;
+      document.head.appendChild(newScript);
+      newScript.remove();
+    });
+  }
+
   async function fetchSizeGuide(el, target) {
     try {
       const res = await fetch(buildProxyUrl(el));
       const html = await res.text();
       target.innerHTML = html;
+      runScripts(target);
     } catch (e) {
       target.innerHTML = '<p>Could not load size guide.</p>';
     }

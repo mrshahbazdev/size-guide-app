@@ -76,9 +76,16 @@ function renderSizeChart(chart, ctx) {
       <input type="number" step="0.1" data-measure-key="${normalizeKey(h)}" placeholder="0">
     </div>
   `).join('');
+  const widgetId = 'sg-widget-' + Math.random().toString(36).slice(2);
   const measurementCtx = JSON.stringify({
     shop: ctx.shop,
     product_handle: ctx.product_handle || '',
+    product_type: ctx.product_type || '',
+    tags: ctx.tags || '',
+    collection_handles: ctx.collection_handles || '',
+    customer_tags: ctx.customer_tags || '',
+    price: ctx.price || '',
+    available: ctx.available !== false,
     customer_id: ctx.logged_in_customer_id || '',
     signature: ctx.signature || '',
     headers: (chart.headers || []).map(normalizeKey),
@@ -117,7 +124,7 @@ function renderSizeChart(chart, ctx) {
 .sg-recommendation__size { font-size:26px; font-weight:800; color:#008060; }
 .sg-recommendation__error { color:#b91c1c; font-size:13px; }
 </style>
-<div class="sg-card" data-size-guide>
+<div class="sg-card" id="${widgetId}" data-size-guide>
   <div class="sg-header">
     <h3 class="sg-title">Size Guide</h3>
     <div class="sg-unit" role="group" aria-label="Unit">
@@ -150,7 +157,7 @@ function renderSizeChart(chart, ctx) {
 </div>
 <script>
 (function(){
-  var widget = document.querySelector('[data-size-guide]');
+  var widget = document.getElementById('${widgetId}');
   if (!widget) return;
   var buttons = widget.querySelectorAll('[data-unit]');
   var cells = widget.querySelectorAll('.size-cell');
@@ -161,9 +168,10 @@ function renderSizeChart(chart, ctx) {
     cells.forEach(function(cell, i){
       cell.textContent = originals[i].replace(/[0-9]+(?:\\.[0-9]+)?/g, function(n){ return (Math.round(parseFloat(n) * factor * 10) / 10).toString(); });
     });
-    var ctx = JSON.parse(document.querySelector('[data-measurements]').dataset.ctx || '{}');
+    var measureEl = widget.querySelector('[data-measurements]');
+    var ctx = JSON.parse(measureEl ? measureEl.dataset.ctx || '{}' : '{}');
     ctx.unit = unit;
-    document.querySelector('[data-measurements]').dataset.ctx = JSON.stringify(ctx);
+    if (measureEl) measureEl.dataset.ctx = JSON.stringify(ctx);
   }
   buttons.forEach(function(btn){ btn.addEventListener('click', function(){ setUnit(btn.dataset.unit); }); });
   setUnit('${defaultUnit}');
@@ -173,14 +181,23 @@ function renderSizeChart(chart, ctx) {
   var sizeEl = widget.querySelector('[data-recommend-size]');
   if (recommendBtn) {
     recommendBtn.addEventListener('click', async function(){
-      var ctx = JSON.parse(document.querySelector('[data-measurements]').dataset.ctx || '{}');
+      var measureEl = widget.querySelector('[data-measurements]');
+      var ctx = JSON.parse(measureEl ? measureEl.dataset.ctx || '{}' : '{}');
       var measurements = {};
-      document.querySelectorAll('[data-measure-key]').forEach(function(input){
+      widget.querySelectorAll('[data-measure-key]').forEach(function(input){
         if (input.value) measurements[input.dataset.measureKey] = input.value;
       });
       if (!Object.keys(measurements).length) { sizeEl.innerHTML = '<span class="sg-recommendation__error">Enter at least one measurement.</span>'; recommendation.classList.add('sg-recommendation--visible'); return; }
       try {
-        var url = '/apps/size-guide/measurements?shop=' + encodeURIComponent(ctx.shop) + (ctx.signature ? '&signature=' + encodeURIComponent(ctx.signature) : '') + (ctx.customer_id ? '&logged_in_customer_id=' + encodeURIComponent(ctx.customer_id) : '');
+        var url = '/apps/size-guide/measurements?shop=' + encodeURIComponent(ctx.shop)
+          + (ctx.signature ? '&signature=' + encodeURIComponent(ctx.signature) : '')
+          + (ctx.customer_id ? '&logged_in_customer_id=' + encodeURIComponent(ctx.customer_id) : '')
+          + (ctx.product_type ? '&product_type=' + encodeURIComponent(ctx.product_type) : '')
+          + (ctx.tags ? '&tags=' + encodeURIComponent(ctx.tags) : '')
+          + (ctx.collection_handles ? '&collection_handles=' + encodeURIComponent(ctx.collection_handles) : '')
+          + (ctx.customer_tags ? '&customer_tags=' + encodeURIComponent(ctx.customer_tags) : '')
+          + (ctx.price ? '&price=' + encodeURIComponent(ctx.price) : '')
+          + '&available=' + encodeURIComponent(ctx.available ? 'true' : 'false');
         var res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product_handle: ctx.product_handle, measurements: measurements, unit: ctx.unit }) });
         var data = await res.json();
         if (data.size) { sizeEl.textContent = data.size; } else { sizeEl.innerHTML = '<span class="sg-recommendation__error">' + (data.error || 'No match') + '</span>'; }
@@ -355,9 +372,16 @@ function renderFitFinder(finder, ctx) {
 }
 
 function buildCtx(req) {
+  const product = getProductFromQuery(req.query);
   return {
     shop: req.query.shop,
-    product_handle: req.query.handle || '',
+    product_handle: product.handle,
+    product_type: product.product_type,
+    tags: req.query.tags || '',
+    collection_handles: req.query.collection_handles || '',
+    customer_tags: req.query.customer_tags || '',
+    price: req.query.price || '',
+    available: product.available,
     logged_in_customer_id: req.query.logged_in_customer_id || '',
     signature: req.query.signature || '',
   };
@@ -396,13 +420,13 @@ router.post('/measurements', proxyAuth, async (req, res, next) => {
     const customerId = req.query.logged_in_customer_id || req.body.customer_id || 'guest';
     const measurements = req.body.measurements || {};
     const unit = req.body.unit || 'cm';
-    const productHandle = req.body.product_handle || '';
-    const product = { handle: productHandle, tags: [], product_type: '', collection_handles: [] };
+    const product = getProductFromQuery(req.query);
+    product.handle = req.body.product_handle || product.handle || '';
     await db.saveMeasurementProfile(shop, customerId, measurements, unit);
     const rec = await db.recommendSizeFromMeasurements(shop, product, measurements);
     const size = rec ? rec.size : null;
-    await db.addMeasurementHistory(shop, customerId, measurements, unit, productHandle, size);
-    await db.trackEvent(shop, 'measurement_save', { product_handle: productHandle, size, metadata: { measurements } });
+    await db.addMeasurementHistory(shop, customerId, measurements, unit, product.handle, size);
+    await db.trackEvent(shop, 'measurement_save', { product_handle: product.handle, size, metadata: { measurements } });
     res.json({ size, confidence: rec ? rec.confidence : 0 });
   } catch (err) { next(err); }
 });

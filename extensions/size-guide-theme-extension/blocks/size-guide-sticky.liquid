@@ -85,11 +85,21 @@
     var proxy = tab.dataset.appProxyUrl || '/apps/size-guide';
     return proxy + '?shop=' + encodeURIComponent(tab.dataset.shop) + '&product_type=' + encodeURIComponent(tab.dataset.productType || '') + '&tags=' + encodeURIComponent(tab.dataset.productTags || '') + '&handle=' + encodeURIComponent(tab.dataset.productHandle || '') + '&collection_handles=' + encodeURIComponent(tab.dataset.collectionHandles || '') + '&logged_in_customer_id=' + encodeURIComponent(tab.dataset.loggedInCustomerId || '') + '&customer_tags=' + encodeURIComponent(tab.dataset.customerTags || '') + '&price=' + encodeURIComponent(tab.dataset.productPrice || '') + '&available=' + encodeURIComponent(tab.dataset.productAvailable || '');
   }
+  function runStickyScripts(container) {
+    container.querySelectorAll('script').forEach(function(script){
+      var newScript = document.createElement('script');
+      if (script.src) newScript.src = script.src;
+      else newScript.textContent = script.textContent;
+      document.head.appendChild(newScript);
+      newScript.remove();
+    });
+  }
   tab.addEventListener('click', async function(){
     drawer.classList.remove('hidden');
     try {
       var res = await fetch(buildUrl());
       content.innerHTML = await res.text();
+      runStickyScripts(content);
     } catch (e) { content.innerHTML = '<p>Could not load size guide.</p>'; }
   });
   drawer.addEventListener('click', function(e){

@@ -26,16 +26,15 @@ size guide, fit finder, size chart, sizing, measurement, product size, apparel s
 
 ## App icon
 - Required: 1200x1200 PNG
-- Location: `assets/icon.png`
+- Location: `docs/assets/app-icon.png`
 
 ## Screenshots (required)
-1. Admin dashboard — Size Charts list
-2. Admin — Chart builder
+1. `docs/assets/screenshot-admin.png` — Admin size chart builder
+2. `docs/assets/screenshot-storefront.png` — Storefront size guide modal
 3. Admin — Fit Finder builder
 4. Admin — Analytics dashboard
-5. Storefront — Size guide modal
-6. Storefront — Fit finder quiz
-7. Storefront — Sticky tab / drawer
+5. Storefront — Fit finder quiz
+6. Storefront — Sticky tab / drawer
 
 ## Pricing
 Free to install. Future plans may include premium analytics and AI recommendations.

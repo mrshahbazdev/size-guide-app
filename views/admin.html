@@ -98,7 +98,19 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-semibold text-slate-700 mb-1.5">Size rows</label>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <label class="block text-sm font-semibold text-slate-700">Size rows</label>
+                    <button type="button" onclick="toggleBulkRows()" class="text-sm font-semibold text-green-700 hover:text-green-900">Bulk edit</button>
+                  </div>
+                  <div id="bulkRowsBox" class="hidden mb-3">
+                    <textarea id="bulkRowsInput" rows="5" class="input-field font-mono text-sm" placeholder="Size,Chest,Waist,Hips
+S,88-92,72-76,92-96
+M,96-100,80-84,100-104"></textarea>
+                    <div class="flex gap-2 mt-2">
+                      <button type="button" onclick="applyBulkRows()" class="btn-primary text-xs">Apply CSV</button>
+                      <button type="button" onclick="copyBulkRows()" class="btn-secondary text-xs">Copy current</button>
+                    </div>
+                  </div>
                   <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
                     <table class="min-w-full text-sm">
                       <thead class="bg-slate-100" id="rowsHead"></thead>
@@ -128,6 +140,41 @@
                       <input id="matchInput" type="text" class="outline-none flex-1 min-w-[80px] bg-transparent" placeholder="Type and press Enter" onkeydown="matchInputKey(event)">
                     </div>
                     <p class="text-xs text-slate-500 mt-1">Press Enter or comma to add. Click chip to remove.</p>
+                  </div>
+                </div>
+
+                <div class="bg-white rounded-lg border border-slate-200 p-4">
+                  <label class="block text-sm font-bold text-slate-800 mb-3">Publish to product metafield</label>
+                  <div class="flex gap-2">
+                    <input id="publishProductHandle" type="text" class="input-field" placeholder="Product handle (e.g. red-t-shirt)">
+                    <button type="button" onclick="publishMetafield()" class="btn-primary whitespace-nowrap">Publish</button>
+                  </div>
+                  <p id="publishStatus" class="text-xs text-slate-500 mt-1"></p>
+                </div>
+
+                <div class="bg-white rounded-lg border border-slate-200 p-4">
+                  <label class="block text-sm font-bold text-slate-800 mb-3">Conditional display rules (optional)</label>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-600 mb-1">Min price</label>
+                      <input id="chartMinPrice" type="number" step="0.01" class="input-field">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-600 mb-1">Max price</label>
+                      <input id="chartMaxPrice" type="number" step="0.01" class="input-field">
+                    </div>
+                    <div class="flex items-center">
+                      <input id="chartInStockOnly" type="checkbox" class="h-4 w-4 text-green-600 border-gray-300 rounded">
+                      <label for="chartInStockOnly" class="ml-2 text-sm font-semibold text-slate-700">Only when in stock</label>
+                    </div>
+                  </div>
+                  <div class="mt-4">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Customer tags required</label>
+                    <div class="w-full rounded-lg border border-gray-300 shadow-sm focus-within:border-green-600 focus-within:ring-green-600 sm:text-sm px-2 py-2 bg-white flex flex-wrap gap-2 min-h-[42px]" onclick="document.getElementById('customerTagsInput').focus()">
+                      <span id="customerTagsChips" class="contents"></span>
+                      <input id="customerTagsInput" type="text" class="outline-none flex-1 min-w-[80px] bg-transparent" placeholder="vip, wholesale" onkeydown="customerTagsInputKey(event)">
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">Leave empty to show for all customers. Press Enter to add.</p>
                   </div>
                 </div>
               </div>
@@ -180,6 +227,19 @@
             </select>
           </div>
           <div id="analyticsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
+          <div class="card p-5 mb-6">
+            <h3 class="text-sm font-bold text-slate-800 mb-3">Email report</h3>
+            <div class="flex gap-2">
+              <input id="reportEmail" type="email" class="input-field" placeholder="merchant@example.com">
+              <select id="reportDays" class="input-field w-auto">
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+              </select>
+              <button onclick="sendReport()" class="btn-primary whitespace-nowrap">Send report</button>
+            </div>
+            <p id="reportStatus" class="text-xs text-slate-500 mt-2"></p>
+          </div>
+
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="card p-5">
               <h3 class="text-sm font-bold text-slate-800 mb-3">Top recommended sizes</h3>
@@ -325,8 +385,13 @@
       headerValues = ['Chest','Waist','Hips']; renderHeaderChips();
       chartRows = [{ size: '', values: ['', '', ''] }];
       matchValues = [];
+      customerTags = [];
+      document.getElementById('chartMinPrice').value = '';
+      document.getElementById('chartMaxPrice').value = '';
+      document.getElementById('chartInStockOnly').checked = false;
       renderRows();
       renderChips();
+      renderCustomerTagsChips();
       onApplyToChange();
       renderChartPreview();
       document.getElementById('chartForm').scrollIntoView({ behavior: 'smooth' });
@@ -414,6 +479,33 @@
       renderRows();
     }
 
+    let customerTags = [];
+
+    function customerTagsInputKey(e) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const input = e.target;
+        const values = input.value.split(',').map(s => s.trim()).filter(Boolean);
+        values.forEach(v => { if (!customerTags.includes(v)) customerTags.push(v); });
+        input.value = '';
+        renderCustomerTagsChips();
+      }
+      if (e.key === 'Backspace' && e.target.value === '' && customerTags.length) {
+        customerTags.pop();
+        renderCustomerTagsChips();
+      }
+    }
+
+    window.removeCustomerTagChip = function(v) {
+      customerTags = customerTags.filter(x => x !== v);
+      renderCustomerTagsChips();
+    };
+
+    function renderCustomerTagsChips() {
+      const container = document.getElementById('customerTagsChips');
+      container.innerHTML = customerTags.map(v => renderChip(v, 'purple', `removeCustomerTagChip('${chipString(v)}')`)).join('');
+    }
+
     function matchInputKey(e) {
       if (e.key === 'Enter' || e.key === ',') {
         e.preventDefault();
@@ -479,6 +571,43 @@
     window.openPreviewModal = openPreviewModal;
     window.closePreviewModal = closePreviewModal;
 
+    function toggleBulkRows() {
+      const box = document.getElementById('bulkRowsBox');
+      box.classList.toggle('hidden');
+      if (!box.classList.contains('hidden')) copyBulkRows();
+    }
+
+    function copyBulkRows() {
+      const headers = getHeaders();
+      const lines = ['Size,' + headers.join(',')];
+      chartRows.forEach(r => lines.push(r.size + ',' + r.values.join(',')));
+      document.getElementById('bulkRowsInput').value = lines.join('\n');
+    }
+
+    function applyBulkRows() {
+      const text = document.getElementById('bulkRowsInput').value.trim();
+      if (!text) return;
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      if (!lines.length) return;
+      const headers = lines.shift().split(',').map(h => h.trim()).filter(Boolean);
+      const first = headers.shift();
+      if (first && first.toLowerCase() !== 'size') headers.unshift(first);
+      headerValues = headers.slice();
+      chartRows = lines.map(line => {
+        const vals = line.split(',').map(v => v.trim());
+        const size = vals.shift() || '';
+        while (vals.length < headers.length) vals.push('');
+        return { size, values: vals.slice(0, headers.length) };
+      }).filter(r => r.size);
+      renderHeaderChips();
+      renderRows();
+      toast('Bulk rows applied');
+    }
+
+    window.toggleBulkRows = toggleBulkRows;
+    window.copyBulkRows = copyBulkRows;
+    window.applyBulkRows = applyBulkRows;
+
     function renderCharts(charts) {
       const tbody = document.getElementById('chartTableBody');
       if (!charts.length) {
@@ -494,6 +623,7 @@
           <td class="px-4 py-3 text-sm text-slate-600">${escapeHtml(c.apply_to === 'types' ? c.types : c.apply_to === 'tags' ? c.tags : c.apply_to === 'collections' ? c.collections : c.products || '—')}</td>
           <td class="px-4 py-3 text-right text-sm font-medium">
             <button onclick="editChart(${JSON.stringify(c).replace(/"/g, '&quot;')})" class="text-green-700 hover:text-green-900 font-semibold mr-3">Edit</button>
+            <button onclick="duplicateChart('${c.id}')" class="text-blue-700 hover:text-blue-900 font-semibold mr-3">Duplicate</button>
             <button onclick="deleteChart('${c.id}')" class="text-red-600 hover:text-red-800 font-semibold">Delete</button>
           </td>
         </tr>
@@ -515,10 +645,23 @@
       const key = map[c.apply_to] || '';
       const match = key ? c[key] : '';
       matchValues = (match || '').split(',').map(s => s.trim()).filter(Boolean);
+      customerTags = (c.customer_tags || '').split(',').map(s => s.trim()).filter(Boolean);
+      document.getElementById('chartMinPrice').value = c.min_price == null ? '' : c.min_price;
+      document.getElementById('chartMaxPrice').value = c.max_price == null ? '' : c.max_price;
+      document.getElementById('chartInStockOnly').checked = !!c.in_stock_only;
       renderRows();
       renderChips();
+      renderCustomerTagsChips();
       onApplyToChange();
       renderChartPreview();
+    };
+
+    window.duplicateChart = async function(id) {
+      try {
+        await api('/api/size-charts/' + id + '/duplicate', { method: 'POST' });
+        toast('Chart duplicated');
+        loadCharts();
+      } catch (e) { toast(e.message || 'Duplicate failed', 'error'); }
     };
 
     window.deleteChart = async function(id) {
@@ -547,7 +690,11 @@
           types: applyTo === 'types' ? matchValues.join(',') : '',
           tags: applyTo === 'tags' ? matchValues.join(',') : '',
           products: applyTo === 'products' ? matchValues.join(',') : '',
-          collections: applyTo === 'collections' ? matchValues.join(',') : ''
+          collections: applyTo === 'collections' ? matchValues.join(',') : '',
+          min_price: document.getElementById('chartMinPrice').value ? parseFloat(document.getElementById('chartMinPrice').value) : null,
+          max_price: document.getElementById('chartMaxPrice').value ? parseFloat(document.getElementById('chartMaxPrice').value) : null,
+          in_stock_only: document.getElementById('chartInStockOnly').checked,
+          customer_tags: customerTags.join(',')
         };
         const saved = await api(id ? '/api/size-charts/' + id : '/api/size-charts', {
           method: id ? 'PUT' : 'POST',

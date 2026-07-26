@@ -14,7 +14,7 @@ const shopify = shopifyApp({
     apiKey: process.env.SHOPIFY_API_KEY || '',
     apiSecretKey: process.env.SHOPIFY_API_SECRET || '',
     apiVersion: ApiVersion.July26,
-    scopes: ['read_products'],
+    scopes: ['read_products', 'write_products'],
     hostScheme: process.env.NODE_ENV === 'production' ? 'https' : 'http',
     hostName: process.env.HOST || `localhost:${PORT}`,
     isCustomStoreApp: false,
@@ -35,6 +35,7 @@ const { adminAuth } = require('./lib/adminAuth');
 const db = require('./db');
 
 const app = express();
+app.set('shopify', shopify);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

@@ -86,7 +86,7 @@ function renderSizeChart(chart, ctx) {
   return `
 {% layout none %}
 <style>
-.sg-card { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111827; animation: sgFadeIn .25s ease; }
+.sg-card { font-family: var(--sg-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif); color: #111827; animation: sgFadeIn .25s ease; }
 @keyframes sgFadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
 .sg-header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
 .sg-title { margin:0; font-size:22px; font-weight:700; letter-spacing:-0.02em; }
@@ -193,11 +193,15 @@ function renderSizeChart(chart, ctx) {
 }
 
 function getProductFromQuery(q) {
+  const priceStr = String(q.price || '0').replace(/[^0-9.]/g, '');
   return {
     product_type: q.product_type || '',
     tags: (q.tags || '').split(',').filter(Boolean),
     handle: q.handle || '',
     collection_handles: (q.collection_handles || '').split(',').filter(Boolean),
+    customer_tags: (q.customer_tags || '').split(',').filter(Boolean),
+    price: parseFloat(priceStr) || 0,
+    available: q.available !== 'false' && q.available !== false,
   };
 }
 
@@ -222,7 +226,7 @@ function renderFitFinder(finder, ctx) {
   return `
 {% layout none %}
 <style>
-.ff-card { max-width: 560px; margin: 0 auto; padding: 32px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111827; background: #fff; border-radius: 16px; animation: ffFade .3s ease; }
+.ff-card { max-width: 560px; margin: 0 auto; padding: 32px 24px; font-family: var(--sg-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif); color: #111827; background: #fff; border-radius: 16px; animation: ffFade .3s ease; }
 @keyframes ffFade { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
 .ff-header { text-align: center; margin-bottom: 22px; }
 .ff-title { font-size: 26px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.02em; }
@@ -396,8 +400,10 @@ router.post('/measurements', proxyAuth, async (req, res, next) => {
     const product = { handle: productHandle, tags: [], product_type: '', collection_handles: [] };
     await db.saveMeasurementProfile(shop, customerId, measurements, unit);
     const rec = await db.recommendSizeFromMeasurements(shop, product, measurements);
-    await db.trackEvent(shop, 'measurement_save', { product_handle: productHandle, size: rec ? rec.size : '', metadata: { measurements } });
-    res.json({ size: rec ? rec.size : null });
+    const size = rec ? rec.size : null;
+    await db.addMeasurementHistory(shop, customerId, measurements, unit, productHandle, size);
+    await db.trackEvent(shop, 'measurement_save', { product_handle: productHandle, size, metadata: { measurements } });
+    res.json({ size, confidence: rec ? rec.confidence : 0 });
   } catch (err) { next(err); }
 });
 

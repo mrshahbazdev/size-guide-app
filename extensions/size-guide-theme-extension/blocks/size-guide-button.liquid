@@ -8,9 +8,11 @@
   assign button_padding = block.settings.button_padding | default: 14
   assign full_width = block.settings.full_width | default: false
   assign modal_max_width = block.settings.modal_max_width | default: 720
+  assign font_family = block.settings.font_family | default: 'system-ui'
+  assign dark_mode = block.settings.dark_mode | default: false
 -%}
 
-<div class="size-guide-button-wrapper size-guide-button-wrapper--{{ block.settings.alignment }}">
+<div class="size-guide-button-wrapper size-guide-button-wrapper--{{ block.settings.alignment }}{% if dark_mode %} size-guide-button-wrapper--dark{% endif %}" style="--sg-font: {{ font_family }}; --modal-max-width: {{ modal_max_width }}px;">
   {%- if display_mode == 'inline' -%}
     <div class="size-guide-inline" data-size-guide-inline
       data-shop="{{ shop.permanent_domain }}"
@@ -19,6 +21,9 @@
       data-product-handle="{{ product.handle | escape }}"
       data-collection-handles="{% for collection in product.collections %}{{ collection.handle }}{% unless forloop.last %},{% endunless %}{% endfor %}"
       data-logged-in-customer-id="{{ customer.id | default: '' }}"
+      data-customer-tags="{{ customer.tags | join: ',' | escape }}"
+      data-product-price="{{ product.selected_or_first_available_variant.price | money_without_currency }}"
+      data-product-available="{{ product.selected_or_first_available_variant.available }}"
       data-app-proxy-url="{{ shop.url }}/apps/size-guide">
       <p class="size-guide-inline__loading">Loading size guide...</p>
     </div>
@@ -30,6 +35,9 @@
       data-product-handle="{{ product.handle | escape }}"
       data-collection-handles="{% for collection in product.collections %}{{ collection.handle }}{% unless forloop.last %},{% endunless %}{% endfor %}"
       data-logged-in-customer-id="{{ customer.id | default: '' }}"
+      data-customer-tags="{{ customer.tags | join: ',' | escape }}"
+      data-product-price="{{ product.selected_or_first_available_variant.price | money_without_currency }}"
+      data-product-available="{{ product.selected_or_first_available_variant.available }}"
       data-app-proxy-url="{{ shop.url }}/apps/size-guide"
       style="--btn-color: {{ button_color }}; --btn-bg: {{ button_color }}; --btn-text: {{ text_color }}; --btn-radius: {{ border_radius }}px; --btn-padding: {{ button_padding }}px;"
       aria-label="{{ link_text }}">
@@ -116,11 +124,15 @@
   position: relative;
   background: #fff;
   border-radius: 12px;
-  max-width: {{ modal_max_width }}px;
+  max-width: var(--modal-max-width, 720px);
   width: calc(100% - 32px);
   max-height: 85vh;
   overflow: auto;
   box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+}
+.size-guide-button-wrapper--dark .size-guide-modal__content { background: #0f172a; color: #e5e7eb; }
+@media (prefers-color-scheme: dark) {
+  .size-guide-button-wrapper--dark .size-guide-modal__content { background: #0f172a; color: #e5e7eb; }
 }
 .size-guide-modal__close {
   position: absolute;
@@ -234,6 +246,20 @@
         { "value": "right", "label": "Right" }
       ],
       "default": "left"
+    },
+    {
+      "type": "text",
+      "id": "font_family",
+      "label": "Font family",
+      "default": "system-ui",
+      "info": "e.g. Inter, Poppins, Georgia"
+    },
+    {
+      "type": "checkbox",
+      "id": "dark_mode",
+      "label": "Dark mode",
+      "default": false,
+      "info": "Use dark background for the modal"
     }
   ]
 }

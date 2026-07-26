@@ -13,6 +13,9 @@
     data-product-handle="{{ product.handle | escape }}"
     data-collection-handles="{% for collection in product.collections %}{{ collection.handle }}{% unless forloop.last %},{% endunless %}{% endfor %}"
     data-logged-in-customer-id="{{ customer.id | default: '' }}"
+    data-customer-tags="{{ customer.tags | join: ',' | escape }}"
+    data-product-price="{{ product.selected_or_first_available_variant.price | money_without_currency }}"
+    data-product-available="{{ product.selected_or_first_available_variant.available }}"
     data-app-proxy-url="{{ shop.url }}/apps/size-guide"
     style="--tab-color: {{ tab_color }}; --tab-text: {{ text_color }};"
     aria-label="{{ link_text }}">
@@ -80,7 +83,7 @@
   var content = drawer.querySelector('[data-size-guide-content]');
   function buildUrl(){
     var proxy = tab.dataset.appProxyUrl || '/apps/size-guide';
-    return proxy + '?shop=' + encodeURIComponent(tab.dataset.shop) + '&product_type=' + encodeURIComponent(tab.dataset.productType || '') + '&tags=' + encodeURIComponent(tab.dataset.productTags || '') + '&handle=' + encodeURIComponent(tab.dataset.productHandle || '') + '&collection_handles=' + encodeURIComponent(tab.dataset.collectionHandles || '') + '&logged_in_customer_id=' + encodeURIComponent(tab.dataset.loggedInCustomerId || '');
+    return proxy + '?shop=' + encodeURIComponent(tab.dataset.shop) + '&product_type=' + encodeURIComponent(tab.dataset.productType || '') + '&tags=' + encodeURIComponent(tab.dataset.productTags || '') + '&handle=' + encodeURIComponent(tab.dataset.productHandle || '') + '&collection_handles=' + encodeURIComponent(tab.dataset.collectionHandles || '') + '&logged_in_customer_id=' + encodeURIComponent(tab.dataset.loggedInCustomerId || '') + '&customer_tags=' + encodeURIComponent(tab.dataset.customerTags || '') + '&price=' + encodeURIComponent(tab.dataset.productPrice || '') + '&available=' + encodeURIComponent(tab.dataset.productAvailable || '');
   }
   tab.addEventListener('click', async function(){
     drawer.classList.remove('hidden');

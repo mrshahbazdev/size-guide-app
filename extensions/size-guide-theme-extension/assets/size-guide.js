@@ -6,8 +6,11 @@
     const handle = encodeURIComponent(el.dataset.productHandle || '');
     const collections = encodeURIComponent(el.dataset.collectionHandles || '');
     const customerId = encodeURIComponent(el.dataset.loggedInCustomerId || '');
+    const customerTags = encodeURIComponent(el.dataset.customerTags || '');
+    const price = encodeURIComponent(el.dataset.productPrice || '');
+    const available = encodeURIComponent(el.dataset.productAvailable || '');
     const proxyUrl = el.dataset.appProxyUrl || '/apps/size-guide';
-    return `${proxyUrl}?shop=${encodeURIComponent(shop)}&product_type=${type}&tags=${tags}&handle=${handle}&collection_handles=${collections}&logged_in_customer_id=${customerId}`;
+    return `${proxyUrl}?shop=${encodeURIComponent(shop)}&product_type=${type}&tags=${tags}&handle=${handle}&collection_handles=${collections}&logged_in_customer_id=${customerId}&customer_tags=${customerTags}&price=${price}&available=${available}`;
   }
 
   async function fetchSizeGuide(el, target) {
@@ -41,7 +44,17 @@
   });
 
   const inlineContainers = document.querySelectorAll('[data-size-guide-inline]');
-  inlineContainers.forEach(container => {
-    fetchSizeGuide(container, container);
-  });
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          io.unobserve(entry.target);
+          fetchSizeGuide(entry.target, entry.target);
+        }
+      });
+    }, { rootMargin: '200px' });
+    inlineContainers.forEach(container => io.observe(container));
+  } else {
+    inlineContainers.forEach(container => fetchSizeGuide(container, container));
+  }
 })();

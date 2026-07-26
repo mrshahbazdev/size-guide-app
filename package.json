@@ -16,6 +16,10 @@
     "@shopify/shopify-app-express": "^7.0.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "mysql2": "^3.23.1"
+    "mysql2": "^3.23.1",
+    "nodemailer": "^9.0.3"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^8.0.1"
   }
 }
